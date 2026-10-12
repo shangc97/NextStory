@@ -1,0 +1,106 @@
+/** Live smoke test: temporary Auth accounts and activity docs, removed in finally. */
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { createUserWithEmailAndPassword, deleteUser, getAuth, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, serverTimestamp, setDoc, terminate } from 'firebase/firestore';
+
+const config = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+};
+assert(config.apiKey && config.projectId && config.appId, 'Fill in .env.local before running the test.');
+const accounts = [];
+const suffix = randomBytes(8).toString('hex');
+const bookId = `setup-check-${suffix}`;
+async function account(index) {
+  const app = initializeApp(config, `setup-check-${suffix}-${index}`);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const entry = { app, auth, db, email: `nextstory-check-${suffix}-${index}@example.com`, password: randomBytes(24).toString('base64url'), user: null, docs: [] };
+  accounts.push(entry);
+  entry.user = (await createUserWithEmailAndPassword(auth, entry.email, entry.password)).user;
+  return entry;
+}
+async function denied(operation) {
+  await assert.rejects(operation, (error) => error.code === 'permission-denied');
+}
+function nextSnapshot(reference, predicate, operation) {
+  return new Promise((resolve, reject) => {
+    let unsubscribe = () => {};
+    const timeout = setTimeout(() => { unsubscribe(); reject(new Error('Snapshot timed out.')); }, 20000);
+    const finish = (error) => { clearTimeout(timeout); unsubscribe(); error ? reject(error) : resolve(); };
+    unsubscribe = onSnapshot(reference, (snapshot) => {
+      if (!snapshot.metadata.hasPendingWrites && predicate(snapshot)) finish();
+    }, finish);
+    Promise.resolve().then(operation).catch(finish);
+  });
+}
+let failed = false;
+try {
+  const first = await account(1);
+  await updateProfile(first.user, { displayName: 'NextStory setup check' });
+  await signOut(first.auth);
+  await signInWithEmailAndPassword(first.auth, first.email, first.password);
+  assert.equal(first.auth.currentUser.uid, first.user.uid);
+  assert.equal(first.auth.currentUser.displayName, 'NextStory setup check');
+  console.log('PASS: Signup, display name, logout and email/password login.');
+
+  assert.equal((await getDoc(doc(first.db, 'users', first.user.uid))).exists(), false);
+  console.log('PASS: Own profile path can be read before profile creation.');
+
+  const saved = doc(first.db, 'users', first.user.uid, 'savedBooks', bookId);
+  const swipe = doc(first.db, 'users', first.user.uid, 'swipes', bookId);
+  first.docs.push(saved, swipe);
+  await nextSnapshot(saved, (snapshot) => snapshot.exists(), () => setDoc(saved, { bookId, createdAt: serverTimestamp() }));
+  assert.equal((await getDoc(saved)).data().bookId, bookId);
+  assert((await getDocs(collection(first.db, 'users', first.user.uid, 'savedBooks'))).docs.some((item) => item.id === bookId));
+  console.log('PASS: Saved book write, read, collection query and realtime snapshot.');
+
+  await setDoc(swipe, { bookId, direction: 'like', updatedAt: serverTimestamp() });
+  assert.equal((await getDoc(swipe)).data().direction, 'like');
+  await setDoc(swipe, { bookId, direction: 'skip', updatedAt: serverTimestamp() });
+  assert.equal((await getDoc(swipe)).data().direction, 'skip');
+  await denied(() => setDoc(swipe, { bookId, direction: 'invalid', updatedAt: serverTimestamp() }));
+  console.log('PASS: Like/skip persistence and invalid direction rejected.');
+
+  const second = await account(2);
+  await denied(() => getDoc(doc(second.db, 'users', first.user.uid, 'savedBooks', bookId)));
+  await denied(() => setDoc(doc(second.db, 'users', first.user.uid, 'swipes', bookId), { bookId, direction: 'like', updatedAt: serverTimestamp() }));
+  await denied(() => getDocs(collection(second.db, 'users', first.user.uid, 'savedBooks')));
+  await denied(() => getDoc(doc(second.db, 'users', first.user.uid)));
+  console.log('PASS: Another account cannot read/write/query the first account’s private data.');
+
+  await signOut(second.auth);
+  await denied(() => getDoc(doc(second.db, 'users', first.user.uid, 'savedBooks', bookId)));
+  console.log('PASS: Signed-out requests are denied.');
+  await deleteDoc(saved);
+  await deleteDoc(swipe);
+  assert.equal((await getDoc(saved)).exists(), false);
+  assert.equal((await getDoc(swipe)).exists(), false);
+  console.log('PASS: Owner can remove saved books and swipe records.');
+  console.log('Profile document creation and on-device session persistence still need the app signup test. No users/{uid} profile document is created by this test.');
+} catch (error) {
+  failed = true;
+  console.error(`FAIL: ${error.code ?? error.name}: ${error.message}`);
+} finally {
+  for (const entry of accounts.reverse()) {
+    try {
+      if (entry.user) {
+        await signInWithEmailAndPassword(entry.auth, entry.email, entry.password);
+        for (const reference of entry.docs) await deleteDoc(reference);
+        await deleteUser(entry.auth.currentUser);
+        console.log('CLEANUP: Temporary activity documents and Auth account removed.');
+      }
+    } catch (error) {
+      failed = true;
+      console.error(`CLEANUP FAILED for ${entry.email}: ${error.code ?? error.message}. Remove only this test account and its users/${entry.user?.uid ?? '(not created)'} activity manually.`);
+    } finally {
+      await terminate(entry.db);
+      await deleteApp(entry.app);
+    }
+  }
+  process.exitCode = failed ? 1 : 0;
+}

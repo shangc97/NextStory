@@ -3,26 +3,25 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text } from 'react-native';
 
 import { PrimaryButton, Screen, ScreenTitle, TextField } from '@/components/ui';
+import { useAuth } from '@/store/auth';
+import { firebaseConfigured, firebaseError } from '@/services/firebase';
 import { Colors, Spacing } from '@/constants/theme';
-import { useLibrary } from '@/store/library';
 
-/**
- * Wireframe 02 — Create account.
- *
- * Sprint 3 demo: interface only. No account is created; the name is kept on
- * the device so the Profile tab can greet the user. Firebase Authentication
- * replaces `handleCreate` in Sprint 4.
- */
 export default function SignupScreen() {
   const router = useRouter();
-  const { setUserName } = useLibrary();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const { signup } = useAuth();
 
-  const handleCreate = () => {
-    setUserName(name.trim() || null);
-    router.replace('/discover');
+  const handleCreate = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await signup(name, email, password); }
+    catch (error) { setError(firebaseError(error)); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -58,7 +57,8 @@ export default function SignupScreen() {
           onSubmitEditing={handleCreate}
         />
 
-        <PrimaryButton label="Create account" onPress={handleCreate} style={styles.submit} />
+        <Text accessibilityRole="alert">{error || (!firebaseConfigured ? 'Account service is not configured yet.' : '')}</Text>
+        <PrimaryButton disabled={busy || !firebaseConfigured} label={busy ? 'Please wait…' : 'Create account'} onPress={handleCreate} style={styles.submit} />
 
         <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="link" style={styles.switchLink}>
           <Text style={styles.switchText}>Already have an account? Log in</Text>

@@ -18,7 +18,7 @@ import { useLibrary } from '@/store/library';
  */
 export default function DiscoverScreen() {
   const router = useRouter();
-  const { hydrated, liked, skipped, saved, like, skip, toggleSaved, restartDeck } = useLibrary();
+  const { error: syncError, hydrated, liked, skipped, saved, like, skip, toggleSaved, restartDeck } = useLibrary();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [genre, setGenre] = useState<Genre | null>(null);
 
@@ -53,7 +53,7 @@ export default function DiscoverScreen() {
         </View>
       ) : null}
 
-      {!hydrated ? null : deck.length > 0 ? (
+      {syncError ? <Text accessibilityRole="alert">{syncError}</Text> : !hydrated ? <Text>Loading your library…</Text> : deck.length > 0 ? (
         <>
           <View style={styles.directions}>
             <Text style={styles.direction}>{'< SKIP'}</Text>

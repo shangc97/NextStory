@@ -3,22 +3,24 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton, Screen, TextField } from '@/components/ui';
+import { useAuth } from '@/store/auth';
+import { firebaseConfigured, firebaseError } from '@/services/firebase';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-/**
- * Wireframe 01 — Login.
- *
- * Sprint 3 demo: this is the interface only. "Log in" goes straight into the
- * app without checking the fields. Firebase Authentication replaces
- * `handleLogin` in Sprint 4.
- */
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const { login } = useAuth();
 
-  const handleLogin = () => {
-    router.replace('/discover');
+  const handleLogin = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await login(email, password); }
+    catch (error) { setError(firebaseError(error)); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -49,7 +51,8 @@ export default function LoginScreen() {
 
         <Text style={styles.forgot}>Forgot password?</Text>
 
-        <PrimaryButton label="Log in" onPress={handleLogin} />
+        <Text accessibilityRole="alert">{error || (!firebaseConfigured ? 'Account service is not configured yet.' : '')}</Text>
+        <PrimaryButton disabled={busy || !firebaseConfigured} label={busy ? 'Please wait…' : 'Log in'} onPress={handleLogin} />
 
         <Pressable
           onPress={() => router.push('/signup')}

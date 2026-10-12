@@ -2,11 +2,11 @@
 
 Swipe-based book discovery app — Group 2. Built with Expo (React Native) and TypeScript.
 
-This is the **Sprint 3 demo build**: a runnable version of the core flow from the Figma wireframes, using a built-in sample catalogue. There is no backend yet.
+This is the **Sprint 3 demo build**: a runnable version of the core flow from the Figma wireframes, using a built-in sample catalogue. Firebase Authentication and Firestore user activity are now connected in the code; configure your project using [Firebase setup](docs/firebase-setup.md).
 
 ## Run it
 
-You need [Node.js](https://nodejs.org) 20.19 or newer (22 LTS recommended). Check with `node -v`.
+You need [Node.js](https://nodejs.org) 22.13 or newer. Check with `node -v`.
 
 ```bash
 npm install
@@ -21,14 +21,14 @@ Then either:
 
 ## Demo script
 
-1. **Login** — tap **Log in** (the fields are not checked yet). *Create an account* opens the sign-up screen; the name you type there appears on the Profile tab.
+1. **Login** — create an email/password account or log in with an existing account after completing Firebase setup.
 2. **Discover** — swipe a card right to like it, left to skip it, or use the three buttons. The bookmark saves a book without moving on. *Filters* narrows the deck to one genre.
 3. Tap a card to open **Book details**, then **Save to my reading list**.
 4. **Saved** tab — the reading list, with *Saved* and *Liked* lists. The ✕ removes a book.
 5. **Search** tab — search by title or author, or tap a genre.
-6. **Profile** tab — **Reset demo data** clears everything so the deck starts from the first book again. Do this before presenting.
+6. **Profile** tab — **Clear reading activity** clears everything so the deck starts from the first book again. Do this before presenting.
 
-Likes, saves and skips are stored on the device, so they survive closing the app.
+Likes, saves and skips are synchronized to Firestore per authenticated user. See [Firebase setup](docs/firebase-setup.md) for console steps and the schema.
 
 ## What is real and what is a placeholder
 
@@ -38,7 +38,7 @@ Likes, saves and skips are stored on the device, so they survive closing the app
 | Book details, reading list, search, genre filter | Working, on the sample catalogue |
 | Book data | 25 real books bundled in `src/data/books.ts`. Ratings are sample values. |
 | Book covers | Loaded from Open Library when online. Offline, a grey placeholder with the title is shown instead. |
-| Login / Create account | Interface only. Nothing is checked or sent anywhere. |
+| Login / Create account | Firebase email/password authentication; requires console setup. |
 | Reading preferences, Reviews & ratings, Library availability, "Read" list | Not built yet. Shown as disabled or empty where the wireframes include them. |
 | Recommendations | Not built yet. The deck shows the catalogue in a fixed order. |
 
@@ -65,13 +65,13 @@ src/
     ui.tsx                Screen, titles, buttons, text field, option bar
   constants/theme.ts      Colours, spacing, radii (change here for the hi-fi design)
   data/books.ts           Sample catalogue + data access functions
-  store/library.tsx       Saved / liked / skipped state, stored on the device
+  store/library.tsx       Saved / liked / skipped state, synchronized to Firestore
 ```
 
 ## Where the next sprints plug in
 
-- **Firebase Authentication:** replace `handleLogin` in `src/app/index.tsx` and `handleCreate` in `src/app/signup.tsx`.
-- **Firestore:** `src/store/library.tsx` is the only file that reads and writes user data. Swap AsyncStorage for Firestore there and keep the same actions (`like`, `skip`, `toggleSaved`, …).
+- **Firebase Authentication:** connected through `src/store/auth.tsx`; finish [console setup](docs/firebase-setup.md).
+- **Firestore:** `src/store/library.tsx` synchronizes user activity. Preferences and reviews have reserved schemas/rules for future screens.
 - **Google Books API:** screens only use `getAllBooks`, `getBookById` and `searchBooks` from `src/data/books.ts`. Replace those implementations.
 - **Recommendations:** change how `deck` is ordered in `src/app/(tabs)/discover.tsx`.
 - **High-fidelity design:** update `src/constants/theme.ts`.
