@@ -142,6 +142,8 @@ function SwipeCard({ book, isTop, reveal, deckHeight, onPress, onSwiped, ref }: 
     latest.current = { isTop, threshold, flyOut, settle };
   });
 
+  // PanResponder stores these callbacks; ref reads happen only during gestures.
+  // eslint-disable-next-line react-hooks/refs
   const [panResponder] = useState(() =>
     PanResponder.create({
       // Only take over for a clearly horizontal drag, so a tap still opens the details.

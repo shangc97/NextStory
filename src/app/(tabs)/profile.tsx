@@ -1,19 +1,22 @@
-import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { useAuth } from '@/store/auth';
+import { firebaseError } from '@/services/firebase';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { OutlineButton, PrimaryButton, Screen, ScreenTitle } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useLibrary } from '@/store/library';
 
-/**
- * Wireframe 10 — Profile (minimal version for the Sprint 3 demo).
- *
- * Shows the reader's name and activity counts. "Reset demo data" clears the
- * saved / liked / skipped lists so the deck starts from the first book again.
- */
 export default function ProfileScreen() {
-  const router = useRouter();
-  const { userName, saved, liked, skipped, resetAll } = useLibrary();
+  const { user, logout } = useAuth();
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const handleLogout = async () => {
+    setBusy(true);
+    try { await logout(); } catch (error) { setError(firebaseError(error)); }
+    finally { setBusy(false); }
+  };
+  const { userName, saved, liked, skipped, resetAll, error: syncError, hydrated } = useLibrary();
 
   const stats = [
     { label: 'Saved', value: saved.length },
@@ -27,7 +30,7 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <Text style={styles.name}>{userName ?? 'Reader'}</Text>
-        <Text style={styles.caption}>Sample profile · sign-in is not connected yet</Text>
+        <Text style={styles.caption}>{user?.email}</Text>
       </View>
 
       <View style={styles.stats}>
@@ -40,8 +43,9 @@ export default function ProfileScreen() {
       </View>
 
       <OutlineButton label="Edit reading preferences" disabled note="Coming soon" />
-      <OutlineButton label="Reset demo data" onPress={resetAll} style={styles.gap} />
-      <PrimaryButton label="Log out" onPress={() => router.replace('/')} style={styles.gap} />
+      <OutlineButton label="Clear reading activity" disabled={!hydrated} onPress={() => Alert.alert('Clear reading activity?', 'Your saved books and swipes will be deleted.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: resetAll }])} style={styles.gap} />
+      <Text accessibilityRole="alert">{error || syncError}</Text>
+      <PrimaryButton label="Log out" disabled={busy} onPress={handleLogout} style={styles.gap} />
     </Screen>
   );
 }
