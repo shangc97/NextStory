@@ -33,3 +33,6 @@ export function firebaseError(error: unknown) {
     default: return error instanceof Error && !code ? error.message : 'The request failed. Please try again.';
   }
 }
+
+/** Enable after the book seed and catalogue read rules are deployed. */
+export const firestoreBooksEnabled = process.env.EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED === 'true';

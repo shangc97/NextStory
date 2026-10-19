@@ -2,7 +2,13 @@
 
 Swipe-based book discovery app — Group 2. Built with Expo (React Native) and TypeScript.
 
-This is the **Sprint 3 demo build**: a runnable version of the core flow from the Figma wireframes, using a built-in sample catalogue. Firebase Authentication and Firestore user activity are now connected in the code; configure your project using [Firebase setup](docs/firebase-setup.md).
+This is the **Sprint 3 demo build**: a runnable version of the core flow from the Figma wireframes, using a sample catalogue that can now load from Firestore. Firebase Authentication and Firestore user activity are now connected in the code; configure your project using [Firebase setup](docs/firebase-setup.md).
+
+## Firestore book catalogue
+
+The shared Firebase project contains 25 sample books in the singular `book` collection. Set `EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED=true` (included in `.env.example`) and restart Expo to read them from Firestore. Discover, Search, Saved, and Book details use the same catalogue subscription. Ratings remain sample values.
+
+Set the flag to `false` to use the bundled demo catalogue. See [book collection setup](docs/firestore-books.md) for schema, import, rules, and checks.
 
 ## Run it
 
@@ -36,7 +42,7 @@ Likes, saves and skips are synchronized to Firestore per authenticated user. See
 | --- | --- |
 | Swipe deck, like / skip / save | Working |
 | Book details, reading list, search, genre filter | Working, on the sample catalogue |
-| Book data | 25 real books bundled in `src/data/books.ts`. Ratings are sample values. |
+| Book data | 25 books seeded from `src/data/books.seed.json` into Firestore `book`; bundled fallback when the flag is false. Ratings are sample values. |
 | Book covers | Loaded from Open Library when online. Offline, a grey placeholder with the title is shown instead. |
 | Login / Create account | Firebase email/password authentication; requires console setup. |
 | Reading preferences, Reviews & ratings, Library availability, "Read" list | Not built yet. Shown as disabled or empty where the wireframes include them. |
@@ -72,7 +78,7 @@ src/
 
 - **Firebase Authentication:** connected through `src/store/auth.tsx`; finish [console setup](docs/firebase-setup.md).
 - **Firestore:** `src/store/library.tsx` synchronizes user activity. Preferences and reviews have reserved schemas/rules for future screens.
-- **Google Books API:** screens only use `getAllBooks`, `getBookById` and `searchBooks` from `src/data/books.ts`. Replace those implementations.
+- **Google Books API:** import additional metadata into `book` with a trusted administrative tool; screens read through `useCatalogue` in `src/store/catalogue.tsx`.
 - **Recommendations:** change how `deck` is ordered in `src/app/(tabs)/discover.tsx`.
 - **High-fidelity design:** update `src/constants/theme.ts`.
 

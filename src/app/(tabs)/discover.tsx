@@ -1,3 +1,4 @@
+import { useCatalogue } from '@/store/catalogue';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { EmptyState, OptionBar, OutlineButton, PrimaryButton, Screen, ScreenTitle } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { Genre, GENRES, getAllBooks } from '@/data/books';
+import { Genre, GENRES } from '@/data/books';
 import { useLibrary } from '@/store/library';
 
 /**
@@ -18,12 +19,13 @@ import { useLibrary } from '@/store/library';
  */
 export default function DiscoverScreen() {
   const router = useRouter();
+  const { books } = useCatalogue();
   const { error: syncError, hydrated, liked, skipped, saved, like, skip, toggleSaved, restartDeck } = useLibrary();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [genre, setGenre] = useState<Genre | null>(null);
 
   const seen = new Set([...liked, ...skipped]);
-  const deck = getAllBooks().filter((book) => !seen.has(book.id) && (!genre || book.genre === genre));
+  const deck = books.filter((book) => !seen.has(book.id) && (!genre || book.genre === genre));
 
   const filtersButton = (
     <Pressable
@@ -78,7 +80,7 @@ export default function DiscoverScreen() {
             body={
               genre
                 ? `There are no more ${genre} books to show right now.`
-                : 'You have been through every book in the sample catalogue.'
+                : 'You have been through every book in the catalogue.'
             }
           />
           {genre ? <OutlineButton label="Show all genres" onPress={() => setGenre(null)} /> : null}

@@ -34,6 +34,11 @@ service cloud.firestore {
           && request.resource.data.updatedAt == request.time;
       }
     }
+    match /book/{bookId} {
+      allow read: if signedIn();
+      // Shared catalogue is maintained by trusted administrative tools.
+      allow write: if false;
+    }
     match /books/{bookId} {
       allow read: if signedIn();
       // Shared catalogue is maintained by trusted administrative tools.

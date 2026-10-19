@@ -1,3 +1,4 @@
+import { useCatalogue } from '@/store/catalogue';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -5,17 +6,17 @@ import { StyleSheet, View } from 'react-native';
 import { BookRow } from '@/components/book-row';
 import { EmptyState, OptionBar, Screen, ScreenTitle, SectionHeading, TextField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
-import { formatRating, Genre, GENRES, searchBooks } from '@/data/books';
+import { formatRating, Genre, GENRES } from '@/data/books';
 
 /**
  * Wireframe 05 — Search.
  *
- * Searches the built-in catalogue by title or author. Tapping a genre narrows
- * the results; tapping it again clears it. `searchBooks` is the function to
- * replace with a Google Books API call later.
+ * Searches the current catalogue by title or author. Tapping a genre narrows
+ * the results; tapping it again clears it.
  */
 export default function SearchScreen() {
   const router = useRouter();
+  const { searchBooks } = useCatalogue();
   const [query, setQuery] = useState('');
   const [genre, setGenre] = useState<Genre | null>(null);
 

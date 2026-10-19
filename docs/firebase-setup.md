@@ -1,5 +1,7 @@
 # Firebase setup
 
+The shared project also has the singular `book` catalogue. See [book collection setup](firestore-books.md) for its import, access rules, and activation flag.
+
 NextStory now uses Firebase Authentication for email/password accounts and Cloud Firestore for each reader's saved books and latest swipe state. Likes record interest for future recommendations; saves belong to the reading list. Passwords are managed by Authentication and never stored in Firestore.
 
 ## Current scope
@@ -10,7 +12,7 @@ NextStory now uses Firebase Authentication for email/password accounts and Cloud
 - Protect app routes while signed out and discard the previous account's library when accounts change.
 - Prepare schemas and rules for preferences, shared book metadata, and reviews.
 
-Book discovery, details, and search still use the bundled sample catalogue. Importing book metadata and connecting those screens to Firestore/Google Books are the next tasks. Preferences/reviews screens, recommendations, AI, and library availability are future work. Existing device-only demo lists are not imported into an account or deleted.
+With `EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED=true`, discovery, search, reading lists, and book details use the Firestore `book` catalogue. The bundled catalogue remains available when the flag is false. Google Books integration remains future work. Preferences/reviews screens, recommendations, AI, and library availability are future work. Existing device-only demo lists are not imported into an account or deleted.
 
 ## Team onboarding
 
@@ -64,7 +66,8 @@ npx firebase-tools deploy --only firestore:rules --project nextstory-1555a
 | `users/{uid}` | `displayName`, `preferences: { genres: [], authors: [] }`, `createdAt`, `updatedAt` | Owner reads/creates/updates; profile deletion is not implemented |
 | `users/{uid}/savedBooks/{bookId}` | `bookId`, `createdAt`; personal reading list | Owner reads/creates/deletes |
 | `users/{uid}/swipes/{bookId}` | `bookId`, `direction: like or skip`, `updatedAt`; latest interest state | Owner reads/creates/updates/deletes |
-| `books/{bookId}` | Reserved for shared book metadata; not yet used by the UI | Signed-in reads; writes only through trusted administrative tools |
+| `book/{bookId}` | Active shared catalogue; see book setup for fields | Signed-in reads; trusted administrative writes only |
+| `books/{bookId}` | Legacy reserved metadata path; not used by the UI | Signed-in reads; writes only through trusted administrative tools |
 | `books/{bookId}/reviews/{uid}` | Reserved for one review per reader/book: integer `rating` 1–5, `content` up to 2,000 characters, `updatedAt` | Signed-in reads; author creates/updates/deletes |
 
 Collections appear on the first document write; empty collections do not need to be created manually. Swipe records represent the latest state per book, not an append-only event history. The current sample IDs (for example `dune`) need a mapping strategy before adopting Google Books IDs.
