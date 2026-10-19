@@ -1,3 +1,4 @@
+import { useCatalogue } from '@/store/catalogue';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -5,7 +6,7 @@ import { AppTabBar, isTabName } from '@/components/app-tab-bar';
 import { BookCover } from '@/components/book-cover';
 import { EmptyState, OutlineButton, PrimaryButton, Screen, ScreenTitle, SectionHeading } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { formatRating, getBookById } from '@/data/books';
+import { formatRating } from '@/data/books';
 import { useLibrary } from '@/store/library';
 
 /**
@@ -17,6 +18,7 @@ import { useLibrary } from '@/store/library';
  */
 export default function BookDetailsScreen() {
   const router = useRouter();
+  const { getBookById } = useCatalogue();
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { saved, toggleSaved } = useLibrary();
 
@@ -32,7 +34,7 @@ export default function BookDetailsScreen() {
     return (
       <Screen footer={tabBar}>
         <ScreenTitle onBack={goBack}>Book details</ScreenTitle>
-        <EmptyState title="Book not found" body="This book is not in the sample catalogue." />
+        <EmptyState title="Book not found" body="This book is not in the catalogue." />
       </Screen>
     );
   }

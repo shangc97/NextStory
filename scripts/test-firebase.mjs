@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { createUserWithEmailAndPassword, deleteUser, getAuth, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, serverTimestamp, setDoc, terminate } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc, terminate } from 'firebase/firestore';
 
 const config = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -51,6 +51,18 @@ try {
   assert.equal((await getDoc(doc(first.db, 'users', first.user.uid))).exists(), false);
   console.log('PASS: Own profile path can be read before profile creation.');
 
+  if (process.env.EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED === 'true') {
+    const catalogue = await getDocs(query(collection(first.db, 'book'), orderBy('order')));
+    assert(catalogue.size >= 25, 'Import the 25 sample books before running this check.');
+    const dune = catalogue.docs.find((item) => item.id === 'dune');
+    assert(dune, 'Expected the original sample book ID to be preserved.');
+    assert.equal(dune.data().title, 'Dune');
+    assert.equal(dune.data().order, 0);
+    await denied(() => setDoc(doc(first.db, 'book', bookId), { title: 'Unauthorized' }));
+    await denied(() => deleteDoc(doc(first.db, 'book', 'dune')));
+    console.log('PASS: Authenticated catalogue reads, preserved sample IDs/order, and rejected client writes/deletes.');
+  }
+
   const saved = doc(first.db, 'users', first.user.uid, 'savedBooks', bookId);
   const swipe = doc(first.db, 'users', first.user.uid, 'swipes', bookId);
   first.docs.push(saved, swipe);
@@ -76,6 +88,11 @@ try {
   await signOut(second.auth);
   await denied(() => getDoc(doc(second.db, 'users', first.user.uid, 'savedBooks', bookId)));
   console.log('PASS: Signed-out requests are denied.');
+  if (process.env.EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED === 'true') {
+    await denied(() => getDocs(collection(second.db, 'book')));
+    console.log('PASS: Signed-out catalogue query is denied.');
+  }
+
   await deleteDoc(saved);
   await deleteDoc(swipe);
   assert.equal((await getDoc(saved)).exists(), false);

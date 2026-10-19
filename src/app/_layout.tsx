@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { CatalogueProvider } from '@/store/catalogue';
 import { Colors } from '@/constants/theme';
 import { LibraryProvider } from '@/store/library';
 import { AuthProvider, useAuth } from '@/store/auth';
@@ -18,19 +19,21 @@ function Navigator() {
   const { user, loading } = useAuth();
   if (loading) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>;
   return (
-    <LibraryProvider key={user?.uid ?? 'signed-out'}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
-        <Stack.Protected guard={!user}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="signup" />
-        </Stack.Protected>
-        <Stack.Protected guard={!!user}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="book/[id]" />
-        </Stack.Protected>
-      </Stack>
-    </LibraryProvider>
+    <CatalogueProvider key={user?.uid ?? 'signed-out'}>
+      <LibraryProvider>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
+          <Stack.Protected guard={!user}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="signup" />
+          </Stack.Protected>
+          <Stack.Protected guard={!!user}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="book/[id]" />
+          </Stack.Protected>
+        </Stack>
+      </LibraryProvider>
+    </CatalogueProvider>
   );
 }
 export default function RootLayout() {

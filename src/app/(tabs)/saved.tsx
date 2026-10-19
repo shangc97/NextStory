@@ -1,3 +1,4 @@
+import { useCatalogue } from '@/store/catalogue';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -5,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { BookRow } from '@/components/book-row';
 import { EmptyState, OptionBar, Screen, ScreenTitle } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { Book, getBookById } from '@/data/books';
+import { Book } from '@/data/books';
 import { useLibrary } from '@/store/library';
 
 const LISTS = ['Saved', 'Liked', 'Read'] as const;
@@ -19,6 +20,7 @@ type ListName = (typeof LISTS)[number];
  */
 export default function SavedScreen() {
   const router = useRouter();
+  const { getBookById } = useCatalogue();
   const { saved, liked, toggleSaved, removeLiked } = useLibrary();
   const [list, setList] = useState<ListName>('Saved');
 
