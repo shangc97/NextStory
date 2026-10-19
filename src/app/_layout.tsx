@@ -14,6 +14,7 @@ import { ActivityIndicator, View } from 'react-native';
  *   /signup      Create account   (signup.tsx)
  *   /discover …  Tab screens      ((tabs)/…)
  *   /book/[id]   Book details     (book/[id].tsx)
+ *   /reviews/[id] Reviews & ratings (reviews/[id].tsx)
  */
 function Navigator() {
   const { user, loading } = useAuth();
@@ -30,6 +31,7 @@ function Navigator() {
           <Stack.Protected guard={!!user}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="book/[id]" />
+            <Stack.Screen name="reviews/[id]" />
           </Stack.Protected>
         </Stack>
       </LibraryProvider>
