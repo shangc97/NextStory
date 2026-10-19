@@ -10,6 +10,10 @@ The shared Firebase project contains 25 sample books in the singular `book` coll
 
 Set the flag to `false` to use the bundled demo catalogue. See [book collection setup](docs/firestore-books.md) for schema, import, rules, and checks.
 
+## Firestore likes
+
+Set `EXPO_PUBLIC_FIRESTORE_LIKES_ENABLED=true` (included in `.env.example`) to synchronize likes to top-level `like/{userId}_{bookId}`. This flag is independent of the book catalogue flag. Existing swipe-based likes remain visible; new like/skip operations update both paths atomically. See [like collection setup](docs/firestore-likes.md) for access rules, compatibility, and checks.
+
 ## Run it
 
 You need [Node.js](https://nodejs.org) 22.13 or newer. Check with `node -v`.

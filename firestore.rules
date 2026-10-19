@@ -34,6 +34,24 @@ service cloud.firestore {
           && request.resource.data.updatedAt == request.time;
       }
     }
+    match /like/{likeId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      // Deterministic IDs prevent duplicate likes for the same reader/book.
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['userId', 'bookId', 'updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && (!exists(/databases/$(database)/documents/like/$(likeId))
+          || resource.data.userId == request.auth.uid)
+        && request.resource.data.bookId is string
+        && request.resource.data.bookId.size() > 0
+        && request.resource.data.bookId.size() <= 200
+        && likeId == request.auth.uid + '_' + request.resource.data.bookId
+        && request.resource.data.updatedAt == request.time;
+      // Deleting an absent document is harmless and supports first-time skips.
+      allow delete: if signedIn()
+        && (!exists(/databases/$(database)/documents/like/$(likeId))
+          || resource.data.userId == request.auth.uid);
+    }
     match /book/{bookId} {
       allow read: if signedIn();
       // Shared catalogue is maintained by trusted administrative tools.

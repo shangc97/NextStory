@@ -4,6 +4,8 @@ The shared project also has the singular `book` catalogue. See [book collection 
 
 NextStory now uses Firebase Authentication for email/password accounts and Cloud Firestore for each reader's saved books and latest swipe state. Likes record interest for future recommendations; saves belong to the reading list. Passwords are managed by Authentication and never stored in Firestore.
 
+The top-level `like` collection is enabled separately with `EXPO_PUBLIC_FIRESTORE_LIKES_ENABLED=true`. See [like collection setup](firestore-likes.md). Existing swipe paths remain in use for compatibility.
+
 ## Current scope
 
 - Sign up, log in, log out, and persist the mobile authentication session using AsyncStorage.
@@ -66,6 +68,7 @@ npx firebase-tools deploy --only firestore:rules --project nextstory-1555a
 | `users/{uid}` | `displayName`, `preferences: { genres: [], authors: [] }`, `createdAt`, `updatedAt` | Owner reads/creates/updates; profile deletion is not implemented |
 | `users/{uid}/savedBooks/{bookId}` | `bookId`, `createdAt`; personal reading list | Owner reads/creates/deletes |
 | `users/{uid}/swipes/{bookId}` | `bookId`, `direction: like or skip`, `updatedAt`; latest interest state | Owner reads/creates/updates/deletes |
+| `like/{userId}_{bookId}` | `userId`, `bookId`, `updatedAt`; per-reader likes | Owner-only reads/writes; queries filter by current user |
 | `book/{bookId}` | Active shared catalogue; see book setup for fields | Signed-in reads; trusted administrative writes only |
 | `books/{bookId}` | Legacy reserved metadata path; not used by the UI | Signed-in reads; writes only through trusted administrative tools |
 | `books/{bookId}/reviews/{uid}` | Reserved for one review per reader/book: integer `rating` 1–5, `content` up to 2,000 characters, `updatedAt` | Signed-in reads; author creates/updates/deletes |
