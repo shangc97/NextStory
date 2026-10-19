@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { createUserWithEmailAndPassword, deleteUser, getAuth, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc, terminate } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc, terminate, where, writeBatch } from 'firebase/firestore';
 
 const config = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -85,12 +85,70 @@ try {
   await denied(() => getDoc(doc(second.db, 'users', first.user.uid)));
   console.log('PASS: Another account cannot read/write/query the first account’s private data.');
 
+  if (process.env.EXPO_PUBLIC_FIRESTORE_LIKES_ENABLED === 'true') {
+    const like = doc(first.db, 'like', `${first.user.uid}_${bookId}`);
+    first.docs.push(like);
+    const fields = { userId: first.user.uid, bookId, updatedAt: serverTimestamp() };
+    const createLike = writeBatch(first.db);
+    createLike.set(swipe, { bookId, direction: 'like', updatedAt: serverTimestamp() });
+    createLike.set(like, fields);
+    const ownLikes = query(collection(first.db, 'like'), where('userId', '==', first.user.uid));
+    await nextSnapshot(ownLikes, (snapshot) => snapshot.docs.some((item) => item.id === like.id), () => createLike.commit());
+    assert.equal((await getDoc(swipe)).data().direction, 'like');
+    // Repeated likes replace the same record rather than adding duplicates.
+    await setDoc(like, fields);
+    assert.equal((await getDocs(ownLikes)).size, 1);
+    assert((await getDocs(query(collection(first.db, 'like'), where('userId', '==', first.user.uid)))).docs.some((item) => item.id === like.id));
+    await denied(() => getDoc(doc(second.db, 'like', like.id)));
+    await denied(() => getDocs(query(collection(second.db, 'like'), where('userId', '==', first.user.uid))));
+    await denied(() => setDoc(doc(second.db, 'like', like.id), fields));
+    await denied(() => deleteDoc(doc(second.db, 'like', like.id)));
+    await denied(() => setDoc(like, { ...fields, extra: true }));
+    await denied(() => setDoc(doc(first.db, 'like', `wrong-${bookId}`), fields));
+    const batch = writeBatch(first.db);
+    batch.set(swipe, { bookId, direction: 'skip', updatedAt: serverTimestamp() });
+    batch.delete(like);
+    await batch.commit();
+    assert.equal((await getDoc(swipe)).data().direction, 'skip');
+    assert(!(await getDocs(ownLikes)).docs.some((item) => item.id === like.id));
+    const absentDelete = writeBatch(first.db);
+    absentDelete.set(swipe, { bookId, direction: 'skip', updatedAt: serverTimestamp() });
+    absentDelete.delete(like);
+    await absentDelete.commit();
+
+    // A rejected like must not leave the user's swipe record changed alone.
+    const rejectedLike = writeBatch(first.db);
+    rejectedLike.set(swipe, { bookId, direction: 'like', updatedAt: serverTimestamp() });
+    rejectedLike.set(like, { ...fields, extra: true });
+    await denied(() => rejectedLike.commit());
+    assert.equal((await getDoc(swipe)).data().direction, 'skip');
+    assert.equal((await getDocs(ownLikes)).size, 0);
+
+    // Removing a liked book clears both the user record and top-level record.
+    const relike = writeBatch(first.db);
+    relike.set(swipe, { bookId, direction: 'like', updatedAt: serverTimestamp() });
+    relike.set(like, fields);
+    await relike.commit();
+    const removeLike = writeBatch(first.db);
+    removeLike.delete(swipe);
+    removeLike.delete(like);
+    await removeLike.commit();
+    assert.equal((await getDoc(swipe)).exists(), false);
+    assert.equal((await getDocs(ownLikes)).size, 0);
+    console.log('PASS: Like realtime subscription, deterministic IDs, owner queries, schema validation, account isolation and atomic like/skip/removal.');
+    console.log('PASS: A rejected like batch leaves the user swipe and like collection unchanged.');
+  }
+
   await signOut(second.auth);
   await denied(() => getDoc(doc(second.db, 'users', first.user.uid, 'savedBooks', bookId)));
   console.log('PASS: Signed-out requests are denied.');
   if (process.env.EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED === 'true') {
     await denied(() => getDocs(collection(second.db, 'book')));
     console.log('PASS: Signed-out catalogue query is denied.');
+  }
+  if (process.env.EXPO_PUBLIC_FIRESTORE_LIKES_ENABLED === 'true') {
+    await denied(() => getDocs(query(collection(second.db, 'like'), where('userId', '==', first.user.uid))));
+    console.log('PASS: Signed-out like query is denied.');
   }
 
   await deleteDoc(saved);

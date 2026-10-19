@@ -36,3 +36,6 @@ export function firebaseError(error: unknown) {
 
 /** Enable after the book seed and catalogue read rules are deployed. */
 export const firestoreBooksEnabled = process.env.EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED === 'true';
+
+/** Enable after owner-only like rules are deployed. */
+export const firestoreLikesEnabled = process.env.EXPO_PUBLIC_FIRESTORE_LIKES_ENABLED === 'true';
