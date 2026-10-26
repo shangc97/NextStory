@@ -216,7 +216,7 @@ function SwipeCard({ book, isTop, reveal, deckHeight, onPress, onSwiped, ref }: 
         <Text style={styles.byline} numberOfLines={1}>
           {book.author} · {book.genre}
         </Text>
-        <Text style={styles.rating}>{formatRating(book.rating)}</Text>
+        <Text style={styles.rating}>{book.rating > 0 ? formatRating(book.rating) : 'Not rated'}</Text>
         <Text style={styles.hook} numberOfLines={2}>
           {book.hook}
         </Text>
