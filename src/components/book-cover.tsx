@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { Colors, Radius } from '@/constants/theme';
@@ -23,6 +23,11 @@ type Props = {
 export function BookCover({ book, style, fit = 'cover', labelSize = 12 }: Props) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading');
   const uri = coverUrl(book, fit === 'contain' ? 'L' : 'M');
+
+  useEffect(() => {
+  setStatus('loading');
+}, [uri]);
+
   const showImage = uri !== null && status !== 'failed';
 
   return (

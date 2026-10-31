@@ -42,6 +42,10 @@ export type Book = {
   description: string;
   /** Open Library cover id. The app falls back to a placeholder if it fails to load. */
   coverId?: number;
+
+  // External book support
+  coverImageUrl?: string;
+  source?: 'google' | 'openlibrary';
 };
 
 const BOOKS: Book[] = seedBooks as Book[];
@@ -67,8 +71,21 @@ export function searchBooks(query: string, genre?: Genre | null): Book[] {
   });
 }
 
-export function coverUrl(book: Book, size: 'M' | 'L' = 'L'): string | null {
+// export function coverUrl(book: Book, size: 'M' | 'L' = 'L'): string | null {
+//   if (!book.coverId) return null;
+//   return `https://covers.openlibrary.org/b/id/${book.coverId}-${size}.jpg`;
+// }
+
+export function coverUrl(
+  book: Book,
+  size: 'M' | 'L' = 'L'
+): string | null {
+  if (book.coverImageUrl) {
+    return book.coverImageUrl.replace(/^http:/, 'https:');
+  }
+
   if (!book.coverId) return null;
+
   return `https://covers.openlibrary.org/b/id/${book.coverId}-${size}.jpg`;
 }
 
