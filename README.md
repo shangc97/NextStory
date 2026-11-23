@@ -9,7 +9,7 @@ You see one book at a time: swipe right to like it, swipe left to skip it, or bo
 
 ## Project status
 
-Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists and search run against the shared Firebase project. The book catalogue is a seeded sample of 25 books; the external Books API, recommendations, and library availability are not built yet.
+Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists and search run against the shared Firebase project. The book catalogue is a seeded sample of 25 books; the external Books API and recommendations are not built yet.
 
 | Sprint | Focus | Status |
 | --- | --- | --- |
@@ -32,7 +32,6 @@ Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists 
 | Reviews & ratings | Screen built: rating and review input, sample reviews. **Post review is disabled** and nothing is saved yet | SCRUM-40 |
 | Profile | Name, email, activity counts, clear activity, log out | SCRUM-37 |
 | Reading Preferences | Not built. "Edit reading preferences" on Profile is disabled | SCRUM-37, SCRUM-13 |
-| Library availability | Not built. The button on Book details is disabled | SCRUM-41 |
 | "Read" list | Shown as an empty list | SCRUM-15 |
 | Personalized recommendations | Not built. The deck uses a fixed order | SCRUM-14 |
 
@@ -44,7 +43,7 @@ Book covers load from Open Library when online. Offline, a grey placeholder with
 
 - [Node.js](https://nodejs.org) 22.13 or newer (`node -v` to check).
 - Access to the shared Firebase project `nextstory-1555a`. Ask the project maintainer to add your Google account under Project settings → Users and permissions.
-- To run on a phone: the latest **Expo Go** from the App Store or Google Play. The project uses Expo SDK 57.
+- To run on a phone: the latest **Expo Go** from the App Store or Google Play. The project uses Expo SDK 58.
 
 ### 2. Install
 
@@ -77,7 +76,7 @@ npx expo start --clear
 
 Use `--clear` the first time and after any change to `.env.local`; the values are built into the app.
 
-- **iPhone (Expo Go):** with SDK 57, Expo Go only opens a project when the terminal and the Expo Go app are signed in to the same Expo account. Run `npx expo login`, sign in to Expo Go with the same account, then scan the QR code. On school Wi-Fi, use `npx expo start --tunnel` if the QR code does not connect.
+- **iPhone (Expo Go):** with SDK 58, Expo Go only opens a project when the terminal and the Expo Go app are signed in to the same Expo account. Run `npx expo login`, sign in to Expo Go with the same account, then scan the QR code. On school Wi-Fi, use `npx expo start --tunnel` if the QR code does not connect.
 - **Android (Expo Go):** scan the QR code from Expo Go. Expo has said the same sign-in rule will come to Android, so sign in there too if Expo Go asks.
 - **iOS simulator / Android emulator:** press `i` or `a` in the terminal. No Expo login is needed. The iOS simulator needs Xcode with an iOS runtime installed.
 - **Browser:** press `w`.
@@ -99,7 +98,7 @@ Use `--clear` the first time and after any change to `.env.local`; the values ar
 | `Unable to resolve "firebase/app"` | Dependencies are out of date. Run `npm install`, then `npx expo start --clear`. |
 | "Account service is not configured yet" and Log in is disabled | `.env.local` is missing or incomplete. Follow step 3, then restart with `--clear`. |
 | "Account service is not ready" | Email/Password sign-in is not enabled in the Firebase project. Ask the maintainer. |
-| Expo Go asks for `npx expo login` | Expected on iPhone with SDK 57. See step 4. |
+| Expo Go asks for `npx expo login` | Expected on iPhone with SDK 58. See step 4. |
 | `git` asks you to agree to the Xcode license | Run `sudo xcodebuild -license`, scroll to the end and type `agree`. |
 
 ## Project structure
@@ -154,5 +153,5 @@ npm run typecheck          # TypeScript check
 npm run lint               # ESLint
 npm run firebase:check     # read-only check of the Firebase setup in .env.local
 npm run firebase:test      # end-to-end check; creates and then deletes temporary test accounts and data
-npx expo install <pkg>     # add a package at the version that matches Expo SDK 57
+npx expo install <pkg>     # add a package at the version that matches Expo SDK 58
 ```

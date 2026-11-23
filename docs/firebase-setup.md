@@ -14,7 +14,7 @@ The top-level `like` collection is enabled separately with `EXPO_PUBLIC_FIRESTOR
 - Protect app routes while signed out and discard the previous account's library when accounts change.
 - Prepare schemas and rules for preferences, shared book metadata, and reviews.
 
-With `EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED=true`, discovery, search, reading lists, and book details use the Firestore `book` catalogue. The bundled catalogue remains available when the flag is false. Google Books integration remains future work. Preferences/reviews screens, recommendations, AI, and library availability are future work. Existing device-only demo lists are not imported into an account or deleted.
+With `EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED=true`, discovery, search, reading lists, and book details use the Firestore `book` catalogue. The bundled catalogue remains available when the flag is false. Google Books integration remains future work. Preferences/reviews screens, recommendations, and AI are future work. Existing device-only demo lists are not imported into an account or deleted.
 
 ## Team onboarding
 

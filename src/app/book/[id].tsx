@@ -20,8 +20,7 @@ import { useLibrary } from "@/store/library";
  * Wireframe 06 — Book details.
  *
  * Opened from Discover, Search or the reading list; `from` remembers which tab
- * to highlight. Reviews & ratings opens wireframe 08; library availability is
- * shown as in the wireframe but stays disabled until its sprint.
+ * to highlight. Reviews & ratings opens wireframe 08.
  */
 export default function BookDetailsScreen() {
   const router = useRouter();
@@ -128,11 +127,6 @@ export default function BookDetailsScreen() {
       </View>
 
       <OutlineButton
-        label="Check library availability"
-        disabled
-        note="Coming soon"
-      />
-      <OutlineButton
         label="Reviews & ratings"
         onPress={() =>
           router.push({
@@ -140,7 +134,6 @@ export default function BookDetailsScreen() {
             params: { id: book.id, from: activeTab },
           })
         }
-        style={styles.gap}
       />
     </Screen>
   );
@@ -187,8 +180,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     color: Colors.ink,
-  },
-  gap: {
-    marginTop: Spacing.md,
   },
 });
