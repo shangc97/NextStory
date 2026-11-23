@@ -31,7 +31,12 @@ function nextSnapshot(reference, predicate, operation) {
   return new Promise((resolve, reject) => {
     let unsubscribe = () => {};
     const timeout = setTimeout(() => { unsubscribe(); reject(new Error('Snapshot timed out.')); }, 20000);
-    const finish = (error) => { clearTimeout(timeout); unsubscribe(); error ? reject(error) : resolve(); };
+    const finish = (error) => {
+      clearTimeout(timeout);
+      unsubscribe();
+      if (error) reject(error);
+      else resolve();
+    };
     unsubscribe = onSnapshot(reference, (snapshot) => {
       if (!snapshot.metadata.hasPendingWrites && predicate(snapshot)) finish();
     }, finish);
@@ -84,6 +89,34 @@ try {
   await denied(() => getDocs(collection(second.db, 'users', first.user.uid, 'savedBooks')));
   await denied(() => getDoc(doc(second.db, 'users', first.user.uid)));
   console.log('PASS: Another account cannot read/write/query the first account’s private data.');
+
+  // Reviews do not require a parent catalogue document, including external book IDs.
+  for (const reviewBookId of [bookId, `google:${bookId}`, `openlibrary:${bookId}`]) {
+    const firstReview = doc(first.db, 'books', reviewBookId, 'reviews', first.user.uid);
+    const secondReview = doc(second.db, 'books', reviewBookId, 'reviews', second.user.uid);
+    first.docs.push(firstReview);
+    second.docs.push(secondReview);
+    const fields = { rating: 5, content: 'Temporary review integration check.', updatedAt: serverTimestamp() };
+    await nextSnapshot(firstReview, (snapshot) => snapshot.exists(), () => setDoc(firstReview, fields));
+    assert.equal((await getDoc(firstReview)).data().content, fields.content);
+    assert((await getDoc(firstReview)).data().updatedAt.toMillis() > 0);
+    await setDoc(firstReview, { ...fields, rating: 3, content: 'Updated temporary review.' });
+    const otherReaderReviews = collection(second.db, 'books', reviewBookId, 'reviews');
+    assert.equal((await getDocs(otherReaderReviews)).size, 1, 'Updating a review must not create duplicates.');
+    assert.equal((await getDocs(otherReaderReviews)).docs[0].data().rating, 3);
+    await denied(() => setDoc(doc(second.db, 'books', reviewBookId, 'reviews', first.user.uid), fields));
+    await denied(() => deleteDoc(doc(second.db, 'books', reviewBookId, 'reviews', first.user.uid)));
+    for (const rating of [0, 6, 2.5, '5']) {
+      await denied(() => setDoc(firstReview, { ...fields, rating }));
+    }
+    await denied(() => setDoc(firstReview, { ...fields, content: 'x'.repeat(2001) }));
+    await denied(() => setDoc(firstReview, { ...fields, extra: true }));
+    await denied(() => setDoc(firstReview, { ...fields, updatedAt: new Date(0) }));
+    assert.equal((await getDoc(firstReview)).data().rating, 3, 'Rejected edits must preserve the saved review.');
+    await setDoc(secondReview, { ...fields, rating: 2 });
+    assert.equal((await getDocs(otherReaderReviews)).size, 2);
+  }
+  console.log('PASS: Review create/update/read/realtime, deterministic IDs, catalogue/Google/Open Library IDs, server timestamps, schema validation and author-only edits/deletes.');
 
   if (process.env.EXPO_PUBLIC_FIRESTORE_LIKES_ENABLED === 'true') {
     const like = doc(first.db, 'like', `${first.user.uid}_${bookId}`);
@@ -140,6 +173,11 @@ try {
   }
 
   await signOut(second.auth);
+  await denied(() => getDocs(collection(second.db, 'books', bookId, 'reviews')));
+  await denied(() => setDoc(doc(second.db, 'books', bookId, 'reviews', second.user.uid), {
+    rating: 5, content: 'Signed-out write must fail.', updatedAt: serverTimestamp(),
+  }));
+  console.log('PASS: Signed-out review reads and writes are denied.');
   await denied(() => getDoc(doc(second.db, 'users', first.user.uid, 'savedBooks', bookId)));
   console.log('PASS: Signed-out requests are denied.');
   if (process.env.EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED === 'true') {
@@ -171,7 +209,7 @@ try {
       }
     } catch (error) {
       failed = true;
-      console.error(`CLEANUP FAILED for ${entry.email}: ${error.code ?? error.message}. Remove only this test account and its users/${entry.user?.uid ?? '(not created)'} activity manually.`);
+      console.error(`CLEANUP FAILED for ${entry.email}: ${error.code ?? error.message}. Remove only this test account and these test documents manually: ${entry.docs.map((reference) => reference.path).join(', ')}.`);
     } finally {
       await terminate(entry.db);
       await deleteApp(entry.app);

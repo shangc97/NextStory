@@ -30,7 +30,7 @@ Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists 
 | Book catalogue | 25 sample books in Firestore `book`; ratings are sample values | SCRUM-43 (Books API in progress) |
 | Book details, Search, genre filter | Working on the catalogue | SCRUM-38 |
 | Maps | Interactive map with 8 fictional Toronto sample libraries. My location shows sample libraries within 5 km, with straight-line distances in marker details. Location is not saved to the account | — |
-| Reviews & ratings | Screen built: rating and review input, sample reviews. **Post review is disabled** and nothing is saved yet | SCRUM-40 |
+| Reviews & ratings | Signed-in readers post a 1–5 rating and review, update their own review, and see live reader reviews and their community average in Firestore | SCRUM-40 |
 | Profile | Name, email, activity counts, clear activity, log out | SCRUM-37 |
 | Reading Preferences | Not built. "Edit reading preferences" on Profile is disabled | SCRUM-37, SCRUM-13 |
 | "Read" list | Shown as an empty list | SCRUM-15 |
@@ -89,7 +89,7 @@ Use `--clear` the first time and after any change to `.env.local`; the values ar
 1. **Create account** with a name, email and password, or **Log in**.
 2. **Discover:** swipe right to like, left to skip, or use the buttons. The bookmark saves a book without moving on. **Filters** narrows the deck to one genre.
 3. Tap a card to open **Book details**, then **Save to my reading list**.
-4. On Book details, open **Reviews & ratings** to see the review screen.
+4. On Book details, open **Reviews & ratings**, choose a score from 1–5, write a review and tap **Post review**. Once saved, the review appears below and contributes to the community average. Reopen the page to edit your review with **Update review**. Each reader has one review per book; book cards retain their catalogue/provider rating.
 5. **Saved** tab: the Saved and Liked lists. The ✕ removes a book.
 6. **Search** tab: search by title or author, or tap a genre.
    **Maps** tab: opens a map centered on Toronto. Pan and zoom to explore, or tap **My location** and allow location access to center the map on your position. If access is blocked, enable it in device or browser settings and try again. The map remains usable without location access.
@@ -145,7 +145,7 @@ firestore.rules             Firestore security rules
 | `users/{uid}/swipes/{bookId}` | Latest like or skip per book |
 | `like/{uid}_{bookId}` | Likes, for future recommendations |
 | `book/{bookId}` | Shared catalogue, read-only for the app |
-| `books/{bookId}/reviews/{uid}` | Reserved for reviews (rating 1–5, text). Not used yet |
+| `books/{bookId}/reviews/{uid}` | One review per reader/book: integer `rating` (1–5), `content` (up to 2,000 characters) and server `updatedAt` |
 
 See [book collection](docs/firestore-books.md) and [like collection](docs/firestore-likes.md) for details.
 
@@ -154,6 +154,7 @@ See [book collection](docs/firestore-books.md) and [like collection](docs/firest
 ```bash
 npx expo start --clear     # start the dev server
 npm run typecheck          # TypeScript check
+npm run test:reviews        # offline review validation and persistence-service tests
 npm run lint               # ESLint
 npm run firebase:check     # read-only check of the Firebase setup in .env.local
 npm run firebase:test      # end-to-end check; creates and then deletes temporary test accounts and data

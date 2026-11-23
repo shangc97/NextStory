@@ -1,285 +1,188 @@
-
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTabBar, isTabName } from '@/components/app-tab-bar';
-import {
-  EmptyState,
-  PrimaryButton,
-  Screen,
-  ScreenTitle,
-  SectionHeading,
-  TextField,
-} from '@/components/ui';
+import { EmptyState, OutlineButton, PrimaryButton, Screen, ScreenTitle, SectionHeading, TextField } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { formatRating } from '@/data/books';
+import { averageReviewRating, MAX_REVIEW_LENGTH, validateReview } from '@/data/reviews';
+import { useBookReviews } from '@/hooks/use-book-reviews';
+import { reviewError, saveBookReview } from '@/services/reviews';
+import { useAuth } from '@/store/auth';
 import { useCatalogue } from '@/store/catalogue';
-
-/**
- * Wireframe 08 — Reviews & ratings.
- *
- * Supports both Firebase catalogue books and Google Books.
- *
- * Review posting is not implemented yet. Users can select
- * a rating and write a review, but the Post review button
- * remains disabled.
- *
- * Reader reviews displayed below are sample data.
- */
 
 const RATINGS = [1, 2, 3, 4, 5] as const;
 
-const SAMPLE_REVIEWS = [
-  {
-    id: 'sample-1',
-    name: 'Alex',
-    rating: 5,
-    text: "Couldn't put it down. I finished it in two evenings.",
-  },
-  {
-    id: 'sample-2',
-    name: 'Sam',
-    rating: 4,
-    text: 'A slow start, but the second half really pays off.',
-  },
-];
-
 export default function ReviewsScreen() {
+  const { id = '', from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { user } = useAuth();
+  // Reset requests and drafts when switching books or signed-in readers.
+  return <BookReviewsScreen key={`${user?.uid}:${id}`} bookId={id} from={from} userId={user?.uid ?? ''} />;
+}
+
+function BookReviewsScreen({ bookId, from, userId }: { bookId: string; from?: string; userId: string }) {
   const router = useRouter();
-
   const { getBookById, loadExternalBook } = useCatalogue();
-
-  const { id, from } = useLocalSearchParams<{
-    id: string;
-    from?: string;
-  }>();
-
-  const [rating, setRating] = useState<number | null>(null);
-  const [text, setText] = useState('');
-
-  const [externalLoading, setExternalLoading] = useState(false);
+  const book = getBookById(bookId);
+  const isExternal = bookId.startsWith('google:') || bookId.startsWith('openlibrary:');
+  const [externalLoading, setExternalLoading] = useState(isExternal && !book);
   const [externalError, setExternalError] = useState('');
-
-  const book = getBookById(id);
-
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const activeTab = isTabName(from) ? from : 'discover';
+  const goBack = () => router.canGoBack() ? router.back() : router.replace({ pathname: '/book/[id]', params: { id: bookId } });
+  const tabBar = <AppTabBar active={activeTab} onSelect={(tab) => router.navigate(`/${tab}`)} />;
 
-  const goBack = () =>
-    router.canGoBack()
-      ? router.back()
-      : router.replace({
-          pathname: '/book/[id]',
-          params: { id },
-        });
-
-  const tabBar = (
-    <AppTabBar
-      active={activeTab}
-      onSelect={(tab) => router.navigate(`/${tab}`)}
-    />
-  );
-
-  /**
-   * Load a Google Books volume if it isn't already
-   * available in the shared catalogue cache.
-   *
-   * Existing Firebase books are not affected.
-   */
   useEffect(() => {
-    if (!id || (!id.startsWith('google:') && !id.startsWith('openlibrary:')) || book) {
-      setExternalLoading(false);
-      return;
-    }
-
+    if (!isExternal || book) return;
     let active = true;
+    void loadExternalBook(bookId).catch(() => {
+      if (active) setExternalError('Unable to load this book. Check your connection and try again.');
+    }).finally(() => {
+      if (active) setExternalLoading(false);
+    });
+    return () => { active = false; };
+  }, [bookId, book, isExternal, loadExternalBook, loadAttempt]);
 
-    setExternalLoading(true);
-    setExternalError('');
-
-    loadExternalBook(id)
-      .catch(() => {
-        if (active) {
-          setExternalError(
-            'Unable to load this book. Check your connection and try again.'
-          );
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setExternalLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [id, book, loadExternalBook]);
-
-  /**
-   * Loading state for external books.
-   */
-  if (!book && externalLoading) {
-    return (
-      <Screen footer={tabBar}>
-        <ScreenTitle onBack={goBack}>
-          Reviews & ratings
-        </ScreenTitle>
-
-        <Text style={styles.status}>
-          Loading book details…
-        </Text>
-      </Screen>
-    );
-  }
-
-  /**
-   * Missing book or API error.
-   */
   if (!book) {
     return (
       <Screen footer={tabBar}>
-        <ScreenTitle onBack={goBack}>
-          Reviews & ratings
-        </ScreenTitle>
-
-        <EmptyState
-          title="Book not found"
-          body={
-            externalError ||
-            'This book is not in the catalogue.'
-          }
-        />
+        <ScreenTitle onBack={goBack}>Reviews & ratings</ScreenTitle>
+        {externalLoading ? <Text style={styles.status}>Loading book details…</Text> : (
+          <EmptyState title="Book not found" body={externalError || 'This book is not in the catalogue.'}>
+            {isExternal ? <OutlineButton label="Try again" onPress={() => {
+              setExternalLoading(true);
+              setExternalError('');
+              setLoadAttempt((attempt) => attempt + 1);
+            }} /> : null}
+          </EmptyState>
+        )}
       </Screen>
     );
   }
 
-  const hasRating = book.rating > 0;
+  return <ReviewList bookId={bookId} title={book.title} userId={userId} goBack={goBack} tabBar={tabBar} />;
+}
+
+function ReviewList({ bookId, title, userId, goBack, tabBar }: {
+  bookId: string; title: string; userId: string; goBack: () => void; tabBar: React.ReactNode;
+}) {
+  const { reviews, loading, error, fromCache, retry } = useBookReviews(bookId);
+  const ownReview = reviews.find((review) => review.userId === userId);
+  const [draft, setDraft] = useState<{ rating: number | null; content: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const inFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const rating = draft ? draft.rating : ownReview?.rating ?? null;
+  const text = draft ? draft.content : ownReview?.content ?? '';
+  const average = averageReviewRating(reviews);
+  const changed = rating !== ownReview?.rating || text.trim() !== ownReview?.content;
+  const validation = validateReview(rating, text);
+
+  const edit = (next: { rating: number | null; content: string }) => {
+    setDraft(next);
+    setSaveError('');
+    setSaved(false);
+  };
+  const submit = async () => {
+    if (inFlight.current) return;
+    if (validation) { setSaveError(validation); return; }
+    inFlight.current = true;
+    setSaving(true);
+    setSaveError('');
+    setSaved(false);
+    try {
+      await saveBookReview(bookId, rating, text);
+      if (mounted.current) {
+        setDraft({ rating, content: text.trim() });
+        setSaved(true);
+        Keyboard.dismiss();
+      }
+    } catch (failure) {
+      if (mounted.current) setSaveError(reviewError(failure));
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setSaving(false);
+    }
+  };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Screen scroll footer={tabBar}>
-        <ScreenTitle
-          subtitle={book.title}
-          onBack={goBack}
-        >
-          Reviews & ratings
-        </ScreenTitle>
-
-        {/* Book rating */}
-        <Text style={styles.score}>
-          {hasRating
-            ? formatRating(book.rating)
-            : 'Not rated'}
-        </Text>
-
-        <Text style={styles.caption}>
-          {book.source === 'google'
-            ? 'Google Books rating, when available'
-            : 'Community rating · sample data'}
-        </Text>
-
-        {/* User rating */}
-        <View style={styles.section}>
-          <SectionHeading>Your rating</SectionHeading>
-
-          <View
-            style={styles.ratingRow}
-            accessibilityRole="radiogroup"
-            accessibilityLabel="Your rating"
-          >
-            {RATINGS.map((value) => {
-              const selected = value === rating;
-
-              return (
-                <Pressable
-                  key={value}
-                  onPress={() =>
-                    setRating(selected ? null : value)
-                  }
-                  role="radio"
-                  aria-checked={selected}
-                  accessibilityLabel={`${value} out of 5`}
-                  style={({ pressed }) => [
-                    styles.ratingChip,
-                    selected && styles.ratingChipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.ratingLabel,
-                      selected && styles.ratingLabelSelected,
-                    ]}
-                  >
-                    {value}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Review text input */}
-          <TextField
-            placeholder="What did you think of this book?"
-            value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={2000}
-            autoCapitalize="sentences"
-            autoCorrect
-            textAlignVertical="top"
-            accessibilityLabel="Your review"
-            style={styles.reviewInput}
-          />
-
-          <PrimaryButton
-            label="Post review"
-            disabled
-          />
-
-          <Text style={styles.note}>
-            Posting reviews is coming in a later sprint.
-          </Text>
-        </View>
-
-        {/* Sample reviews */}
-        <SectionHeading>Reader reviews</SectionHeading>
-
-        {SAMPLE_REVIEWS.map((review) => (
-          <View
-            key={review.id}
-            style={styles.reviewCard}
-          >
-            <Text style={styles.reviewHeader}>
-              {review.name} · {review.rating} / 5
-            </Text>
-
-            <Text style={styles.reviewText}>
-              {review.text}
-            </Text>
-
-            <Text style={styles.sampleTag}>
-              Sample review
-            </Text>
-          </View>
-        ))}
+    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen footer={tabBar} contentStyle={styles.listContainer}>
+        <FlatList
+          data={reviews}
+          keyExtractor={(review) => review.userId}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          ListHeaderComponent={(
+            <>
+              <ScreenTitle subtitle={title} onBack={goBack}>Reviews & ratings</ScreenTitle>
+              <Text selectable style={styles.score}>
+                {average != null ? formatRating(average) : loading ? 'Loading rating…' : error ? 'Rating unavailable' : 'Not rated yet'}
+              </Text>
+              <Text style={styles.caption}>
+                Community rating · {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}{fromCache ? ' · cached' : ''}
+              </Text>
+              <View style={styles.section}>
+                <SectionHeading>Your rating</SectionHeading>
+                <View style={styles.ratingRow} accessibilityRole="radiogroup" accessibilityLabel="Your rating">
+                  {RATINGS.map((value) => (
+                    <Pressable key={value} disabled={saving} onPress={() => edit({ rating: value === rating ? null : value, content: text })}
+                      accessibilityRole="radio" accessibilityState={{ checked: value === rating, disabled: saving }}
+                      accessibilityLabel={`${value} out of 5`}
+                      style={({ pressed }) => [styles.ratingChip, value === rating && styles.ratingChipSelected, pressed && styles.pressed]}>
+                      <Text style={[styles.ratingLabel, value === rating && styles.ratingLabelSelected]}>{value}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextField placeholder="What did you think of this book?" value={text}
+                  onChangeText={(content) => edit({ rating, content })} editable={!saving}
+                  multiline maxLength={MAX_REVIEW_LENGTH} autoCapitalize="sentences" autoCorrect
+                  textAlignVertical="top" accessibilityLabel="Your review" style={styles.reviewInput} />
+                <Text style={styles.counter}>{text.length} / {MAX_REVIEW_LENGTH}</Text>
+                <PrimaryButton label={saving ? 'Saving review…' : ownReview ? 'Update review' : 'Post review'}
+                  onPress={submit} disabled={!userId || saving || loading || !!error || !!validation || !changed} />
+                <Text style={styles.note}>{saving
+                  ? 'Waiting for confirmation. Keep this page open; your draft is preserved.'
+                  : 'Choose 1–5 and write a review. One review per reader per book; you can update it later.'}</Text>
+                {saveError ? <Text selectable style={styles.note} accessibilityRole="alert">{saveError} Your draft has been kept.</Text> : null}
+                {saved ? <Text style={styles.note} accessibilityLiveRegion="polite">Your review was saved.</Text> : null}
+              </View>
+              <SectionHeading>Reader reviews</SectionHeading>
+              {fromCache ? <Text style={styles.note}>Showing cached reviews while reconnecting.</Text> : null}
+              {error ? <View style={styles.readError}>
+                <Text selectable accessibilityRole="alert" style={styles.note}>{error}</Text>
+                <OutlineButton label="Retry loading reviews" onPress={retry} />
+              </View> : null}
+              {loading ? <Text style={styles.status} accessibilityLiveRegion="polite">Loading reviews…</Text> : null}
+            </>
+          )}
+          ListEmptyComponent={!loading && !error ? <EmptyState title="No reviews yet" body="Be the first to share what you thought of this book." /> : undefined}
+          renderItem={({ item }) => (
+            <View style={styles.reviewCard}>
+              <Text style={styles.reviewHeader}>{item.userId === userId ? 'You' : 'Reader'} · {item.rating} / 5</Text>
+              <Text selectable style={styles.reviewText}>{item.content}</Text>
+              {item.updatedAt != null ? <Text style={styles.reviewDate}>Updated {new Date(item.updatedAt).toLocaleDateString()}</Text> : null}
+            </View>
+          )}
+        />
       </Screen>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  listContainer: { paddingBottom: 0 },
+  listContent: { paddingBottom: Spacing.xxl },
+  counter: { fontSize: 12, color: Colors.muted, marginBottom: Spacing.md, textAlign: 'right' },
+  readError: { gap: Spacing.sm, marginBottom: Spacing.md },
   fill: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -376,7 +279,7 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
 
-  sampleTag: {
+  reviewDate: {
     fontSize: 12,
     color: Colors.muted,
   },

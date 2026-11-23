@@ -12,9 +12,10 @@ The top-level `like` collection is enabled separately with `EXPO_PUBLIC_FIRESTOR
 - Create a private user profile on signup; retry missing profile creation on login.
 - Subscribe to the authenticated user's saved books and swipes, and write changes to Firestore.
 - Protect app routes while signed out and discard the previous account's library when accounts change.
-- Prepare schemas and rules for preferences, shared book metadata, and reviews.
+- Post and update one review per reader/book, subscribe to reader reviews, and show their community rating on the reviews screen.
+- Prepare schemas and rules for preferences and shared book metadata.
 
-With `EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED=true`, discovery, search, reading lists, and book details use the Firestore `book` catalogue. The bundled catalogue remains available when the flag is false. Google Books integration remains future work. Preferences/reviews screens, recommendations, and AI are future work. Existing device-only demo lists are not imported into an account or deleted.
+With `EXPO_PUBLIC_FIRESTORE_BOOKS_ENABLED=true`, discovery, search, reading lists, and book details use the Firestore `book` catalogue. The bundled catalogue remains available when the flag is false. Reviews use `books/{bookId}/reviews/{uid}` independently of the catalogue flag, including Google Books and Open Library IDs. Preferences, recommendations, and AI remain future work. Existing device-only demo lists are not imported into an account or deleted.
 
 ## Team onboarding
 
@@ -71,7 +72,11 @@ npx firebase-tools deploy --only firestore:rules --project nextstory-1555a
 | `like/{userId}_{bookId}` | `userId`, `bookId`, `updatedAt`; per-reader likes | Owner-only reads/writes; queries filter by current user |
 | `book/{bookId}` | Active shared catalogue; see book setup for fields | Signed-in reads; trusted administrative writes only |
 | `books/{bookId}` | Legacy reserved metadata path; not used by the UI | Signed-in reads; writes only through trusted administrative tools |
-| `books/{bookId}/reviews/{uid}` | Reserved for one review per reader/book: integer `rating` 1–5, `content` up to 2,000 characters, `updatedAt` | Signed-in reads; author creates/updates/deletes |
+| `books/{bookId}/reviews/{uid}` | One review per reader/book: integer `rating` 1–5, `content` up to 2,000 characters, server `updatedAt` | Signed-in reads; author creates/updates/deletes (delete UI is not implemented) |
+
+The reviews screen uses the existing review rules without adding fields or changing permissions. The client requires nonblank review text and writes exactly `rating`, trimmed `content`, and `updatedAt: serverTimestamp()`. A second submission overwrites the current reader's document. Other readers are labelled “Reader”; private profile documents and email addresses are not fetched or exposed. Catalogue IDs such as `dune`, `google:<volumeId>`, and `openlibrary:<workId>` have separate review threads; matching editions across providers is not implemented. Review subcollections can exist without a parent `books/{bookId}` document. No manual collection creation or extra index is needed.
+
+Reader reviews are shown newest first in a virtualized list. The reviews screen computes its community average from the confirmed reviews in that thread; book cards/details continue to use the catalogue/provider rating. Local pending writes are not presented as published reviews. The success message waits for the write acknowledgement; offline writes can stay pending until the connection returns. Failed saves preserve the draft on the open page, and repeated taps are blocked while saving. Drafts are not persisted after leaving the page. Empty cache snapshots are not treated as proof of an empty thread; cached content is labelled and read failures offer retry.
 
 Collections appear on the first document write; empty collections do not need to be created manually. Swipe records represent the latest state per book, not an append-only event history. The current sample IDs (for example `dune`) need a mapping strategy before adopting Google Books IDs.
 
@@ -82,13 +87,14 @@ Mobile authentication persistence uses AsyncStorage. Persistent mobile offline F
 ```bash
 npm run lint
 npm run typecheck
+npm run test:reviews
 npm run firebase:check
 npm run firebase:test
 ```
 
 `firebase:check` sends read-only setup probes. It does not create accounts/documents, and a PASS does not certify every rule or application flow.
 
-`firebase:test` runs against the project in `.env.local`. It creates temporary Authentication accounts and Saved/Swipe documents, then deletes those test resources in `finally`. Cleanup failures print the specific test account and path for manual removal. It does not create `users/{uid}` profile documents because the current rules do not allow deleting them.
+`test:reviews` runs offline against the actual review validation and service with mocked Firestore calls, including failed saves and server acknowledgements. `firebase:test` runs against the project in `.env.local`. It creates temporary Authentication accounts, Saved/Swipe documents, and review documents, then deletes those test resources in `finally`. Cleanup failures print the specific test account and path for manual removal. It does not create `users/{uid}` profile documents because the current rules do not allow deleting them.
 
 Actual cloud checks passed:
 
@@ -99,6 +105,7 @@ Actual cloud checks passed:
 - Rejection of another account's private-data reads/writes/queries.
 - Rejection of signed-out reads and successful owner deletion of activity.
 - Cleanup of all temporary accounts and activity documents.
+- Review create/update/read/realtime subscription for catalogue, Google Books and Open Library IDs; updating one UID does not duplicate the review. Server timestamps, invalid ratings/oversized text/extra fields, author-only edits/deletes, signed-out denial, and preservation of saved content after a rejected edit were verified against the shared project on November 23, 2026. All temporary review documents and both test accounts were cleaned up.
 
 Lint, TypeScript, and iOS/Web export passed. The app was launched in the iPhone 17 Pro simulator with SDK-compatible Expo Go and the login screen was inspected. The maintainer also reported completing their simulator test. Automated cloud checks do not cover profile creation or mobile session restoration; confirm those in the app as part of review.
 
@@ -109,6 +116,7 @@ Lint, TypeScript, and iOS/Web export passed. The app was launched in the iPhone 
 3. Restart the app and confirm session and library restoration.
 4. Log out and sign in with another account; confirm its list is separate.
 5. Open the same account on a second device and confirm changes synchronize.
+6. Open Reviews & ratings for a book, select a rating and write a review. Confirm Post review saves, the community average updates, and reopening restores your editable review. Change it and confirm Update review replaces it. Sign in with a second reader and confirm they can read it and post their own review. Also check keyboard access, long reviews, failed-save draft retention and retry on a phone.
 
 If signup creates an Auth account but profile saving fails, check the published rules and project configuration, then log in again to retry creating the missing profile. If permissions fail immediately after publishing rules, retry once propagation has completed.
 
