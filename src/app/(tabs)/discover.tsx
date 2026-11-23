@@ -1,21 +1,15 @@
-
-import { useCatalogue } from '@/store/catalogue';
-import { useRouter } from 'expo-router';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCatalogue } from "@/store/catalogue";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { SwipeDeck } from '@/components/swipe-deck';
+import { SwipeDeck } from "@/components/swipe-deck";
 import {
   EmptyState,
   OptionBar,
@@ -23,10 +17,10 @@ import {
   PrimaryButton,
   Screen,
   ScreenTitle,
-} from '@/components/ui';
-import { Colors, Spacing } from '@/constants/theme';
-import { type Book, type Genre, GENRES } from '@/data/books';
-import { useLibrary } from '@/store/library';
+} from "@/components/ui";
+import { Colors, Spacing } from "@/constants/theme";
+import { type Book, type Genre, GENRES } from "@/data/books";
+import { useLibrary } from "@/store/library";
 
 const LOAD_THRESHOLD = 5;
 const MAX_AUTO_PAGES = 4;
@@ -61,7 +55,7 @@ export default function DiscoverScreen() {
 
   const [externalBooks, setExternalBooks] = useState<Book[]>([]);
   const [loadingExternal, setLoadingExternal] = useState(false);
-  const [externalError, setExternalError] = useState('');
+  const [externalError, setExternalError] = useState("");
   const [initialized, setInitialized] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [pageCount, setPageCount] = useState(0);
@@ -79,28 +73,22 @@ export default function DiscoverScreen() {
    * to Open Library fallback automatically.
    */
   const loadPage = useCallback(
-    async (
-      selectedGenre: Genre | null,
-      generation: number
-    ) => {
-      if (
-        requestInFlightRef.current ||
-        !hasMoreRef.current
-      ) {
+    async (selectedGenre: Genre | null, generation: number) => {
+      if (requestInFlightRef.current || !hasMoreRef.current) {
         return;
       }
 
       requestInFlightRef.current = true;
       setLoadingExternal(true);
-      setExternalError('');
+      setExternalError("");
 
       try {
         const startIndex = nextIndexRef.current;
 
         const result = await searchExternalBooks(
-          selectedGenre ? '' : 'fiction',
+          selectedGenre ? "" : "fiction",
           startIndex,
-          selectedGenre
+          selectedGenre,
         );
 
         // Ignore results from an old genre selection.
@@ -109,12 +97,10 @@ export default function DiscoverScreen() {
         }
 
         setExternalBooks((previous) => {
-          const existingIds = new Set(
-            previous.map((book) => book.id)
-          );
+          const existingIds = new Set(previous.map((book) => book.id));
 
           const newBooks = result.books.filter(
-            (book) => !existingIds.has(book.id)
+            (book) => !existingIds.has(book.id),
           );
 
           return [...previous, ...newBooks];
@@ -131,13 +117,11 @@ export default function DiscoverScreen() {
         }
 
         console.warn(
-          '[NextStory Discover] Unable to load external books:',
-          error instanceof Error ? error.message : 'Unknown error'
+          "[NextStory Discover] Unable to load external books:",
+          error instanceof Error ? error.message : "Unknown error",
         );
 
-        setExternalError(
-          'Unable to load more books. Please try again.'
-        );
+        setExternalError("Unable to load more books. Please try again.");
       } finally {
         if (generation === generationRef.current) {
           requestInFlightRef.current = false;
@@ -146,7 +130,7 @@ export default function DiscoverScreen() {
         }
       }
     },
-    [searchExternalBooks]
+    [searchExternalBooks],
   );
 
   /**
@@ -162,7 +146,7 @@ export default function DiscoverScreen() {
     requestInFlightRef.current = false;
 
     setExternalBooks([]);
-    setExternalError('');
+    setExternalError("");
     setHasMore(true);
     setPageCount(0);
     setInitialized(false);
@@ -184,8 +168,7 @@ export default function DiscoverScreen() {
   const combinedBooks = [
     ...books,
     ...externalBooks.filter(
-      (external) =>
-        !books.some((local) => local.id === external.id)
+      (external) => !books.some((local) => local.id === external.id),
     ),
   ];
 
@@ -193,9 +176,7 @@ export default function DiscoverScreen() {
   const seen = new Set([...liked, ...skipped]);
 
   const deck = combinedBooks.filter(
-    (book) =>
-      !seen.has(book.id) &&
-      (!genre || book.genre === genre)
+    (book) => !seen.has(book.id) && (!genre || book.genre === genre),
   );
 
   /**
@@ -246,22 +227,16 @@ export default function DiscoverScreen() {
       accessibilityState={{ expanded: filtersOpen }}
     >
       <Text
-        style={[
-          styles.filters,
-          (filtersOpen || genre) && styles.filtersActive,
-        ]}
+        style={[styles.filters, (filtersOpen || genre) && styles.filtersActive]}
       >
-        {genre ? `Filters · ${genre}` : 'Filters'}
+        {genre ? `Filters · ${genre}` : "Filters"}
       </Text>
     </Pressable>
   );
 
   return (
     <Screen contentStyle={styles.content}>
-      <ScreenTitle
-        subtitle="Discover your next read."
-        right={filtersButton}
-      >
+      <ScreenTitle subtitle="Discover your next read." right={filtersButton}>
         NextStory
       </ScreenTitle>
 
@@ -271,46 +246,36 @@ export default function DiscoverScreen() {
             options={GENRES}
             selected={genre}
             onSelect={(option) =>
-              setGenre((current) =>
-                current === option ? null : option
-              )
+              setGenre((current) => (current === option ? null : option))
             }
           />
         </View>
       ) : null}
 
       {syncError ? (
-        <Text accessibilityRole="alert">
-          {syncError}
-        </Text>
+        <Text accessibilityRole="alert">{syncError}</Text>
       ) : !hydrated ? (
         <Text>Loading your library…</Text>
       ) : deck.length > 0 ? (
         <>
           <View style={styles.directions}>
-            <Text style={styles.direction}>
-              {'< SKIP'}
-            </Text>
-            <Text style={styles.direction}>
-              LIKE
-            </Text>
+            <Text style={styles.direction}>SKIP</Text>
+            <Text style={styles.direction}>LIKE</Text>
           </View>
 
           <SwipeDeck
-            key={genre ?? 'all'}
+            key={genre ?? "all"}
             books={deck}
             savedIds={saved}
             onLike={(book) => like(book.id)}
             onSkip={(book) => skip(book.id)}
-            onToggleSave={(book) =>
-              toggleSaved(book.id)
-            }
+            onToggleSave={(book) => toggleSaved(book.id)}
             onOpen={(book) =>
               router.push({
-                pathname: '/book/[id]',
+                pathname: "/book/[id]",
                 params: {
                   id: book.id,
-                  from: 'discover',
+                  from: "discover",
                 },
               })
             }
@@ -323,25 +288,17 @@ export default function DiscoverScreen() {
           {loadingExternal ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" />
-              <Text style={styles.statusText}>
-                Finding more books…
-              </Text>
+              <Text style={styles.statusText}>Finding more books…</Text>
             </View>
           ) : null}
 
           {externalError ? (
             <View style={styles.statusSection}>
-              <Text
-                accessibilityRole="alert"
-                style={styles.statusText}
-              >
+              <Text accessibilityRole="alert" style={styles.statusText}>
                 {externalError}
               </Text>
 
-              <OutlineButton
-                label="Try again"
-                onPress={retryLoading}
-              />
+              <OutlineButton label="Try again" onPress={retryLoading} />
             </View>
           ) : null}
         </>
@@ -350,38 +307,30 @@ export default function DiscoverScreen() {
           {loadingExternal || !initialized ? (
             <View style={styles.loadingSection}>
               <ActivityIndicator />
-              <Text style={styles.statusText}>
-                Finding books for you…
-              </Text>
+              <Text style={styles.statusText}>Finding books for you…</Text>
             </View>
           ) : (
             <>
               <EmptyState
                 title={
                   externalError
-                    ? 'Could not load more books'
+                    ? "Could not load more books"
                     : "You're all caught up"
                 }
                 body={
                   externalError ||
                   (genre
                     ? `There are no more ${genre} books to show right now.`
-                    : 'You have been through the currently loaded books.')
+                    : "You have been through the currently loaded books.")
                 }
               />
 
               {externalError ? (
-                <OutlineButton
-                  label="Try again"
-                  onPress={retryLoading}
-                />
+                <OutlineButton label="Try again" onPress={retryLoading} />
               ) : null}
 
               {!externalError && hasMore ? (
-                <OutlineButton
-                  label="Find more books"
-                  onPress={retryLoading}
-                />
+                <OutlineButton label="Find more books" onPress={retryLoading} />
               ) : null}
 
               {genre ? (
@@ -416,21 +365,21 @@ const styles = StyleSheet.create({
   },
   filtersActive: {
     color: Colors.ink,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   filterBar: {
     marginTop: -Spacing.sm,
     marginBottom: Spacing.md,
   },
   directions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: -Spacing.sm,
     marginBottom: Spacing.sm,
   },
   direction: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.5,
     color: Colors.ink,
   },
@@ -438,24 +387,24 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     fontSize: 13,
     color: Colors.muted,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyWrap: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   emptyButton: {
     marginTop: Spacing.md,
   },
   loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.sm,
     marginTop: Spacing.md,
   },
   loadingSection: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: Spacing.md,
   },
   statusSection: {
@@ -465,6 +414,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     color: Colors.muted,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
