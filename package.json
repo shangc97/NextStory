@@ -50,7 +50,8 @@
     "firebase:seed:check": "node --env-file=.env.local scripts/seed-books.mjs",
     "firebase:seed": "node --env-file=.env.local scripts/seed-books.mjs --write",
     "test:seed": "node scripts/test-seed-books.mjs",
-    "test:reviews": "node scripts/test-reviews.mjs"
+    "test:reviews": "node scripts/test-reviews.mjs",
+    "test:libraries": "node scripts/test-libraries.mjs"
   },
   "private": true
 }

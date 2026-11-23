@@ -1,11 +1,13 @@
 import * as Location from 'expo-location';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Link } from 'expo-router';
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import LocationMap from '@/components/maps/location-map';
 import { OutlineButton, PrimaryButton, Screen, ScreenTitle } from '@/components/ui';
 import { Colors, ScreenPadding, Spacing } from '@/constants/theme';
-import { getMapLibraries, NEARBY_RADIUS_KM } from '@/data/libraries';
+import { getMapLibraries, LIBRARY_DATASET_URL, LIBRARY_LICENCE_URL, NEARBY_RADIUS_KM } from '@/data/libraries';
+import { useLibraryBranches } from '@/hooks/use-library-branches';
 
 export default function MapsScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -14,8 +16,16 @@ export default function MapsScreen() {
   const [needsSettings, setNeedsSettings] = useState(false);
   const mounted = useRef(true);
   const inFlight = useRef(false);
+  const { branches, loading: branchesLoading, error: branchesError, refresh } = useLibraryBranches();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const controls = useRef<ComponentRef<typeof ScrollView>>(null);
   const coordinate = location?.coords ?? null;
-  const libraries = useMemo(() => getMapLibraries(coordinate), [coordinate]);
+  const libraries = useMemo(() => getMapLibraries(branches ?? [], coordinate), [branches, coordinate]);
+  const selectedLibrary = libraries.find((library) => library.id === selectedId);
+  const selectLibrary = useCallback((id: string) => {
+    setSelectedId(id);
+    controls.current?.scrollTo({ y: 0, animated: true });
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -78,17 +88,32 @@ export default function MapsScreen() {
         <ScreenTitle>Maps</ScreenTitle>
       </View>
       <View style={styles.map}>
-        <LocationMap coordinate={coordinate} libraries={libraries} />
+        <LocationMap coordinate={coordinate} libraries={libraries} onSelectLibrary={selectLibrary} />
       </View>
-      <View style={styles.controls}>
+      <ScrollView ref={controls} style={styles.controlsScroll} contentContainerStyle={styles.controls}>
+        {selectedLibrary ? (
+          <View style={styles.details}>
+            <Text selectable style={styles.legend}>{selectedLibrary.name}</Text>
+            <Text selectable style={styles.detailText}>{selectedLibrary.address}</Text>
+            <Text style={styles.legend}>Opening hours</Text>
+            <Text selectable style={styles.detailText}>{selectedLibrary.hours.split(/;\s*/).join('\n')}</Text>
+            {selectedLibrary.distanceKm != null ? <Text style={styles.body}>{selectedLibrary.distanceKm.toFixed(1)} km away (straight-line)</Text> : null}
+            <OutlineButton label="Close details" onPress={() => setSelectedId(null)} />
+          </View>
+        ) : null}
         <Text style={styles.legend} accessibilityLiveRegion="polite">
-          {coordinate
+          {branches === null
+            ? branchesLoading ? 'Loading library locations…' : 'Library locations unavailable'
+            : branches.length === 0 ? 'No branch locations available'
+            : coordinate
             ? libraries.length > 0
-              ? `${libraries.length} sample libraries within ${NEARBY_RADIUS_KM} km`
-              : `No sample libraries within ${NEARBY_RADIUS_KM} km. Samples are in Toronto.`
-            : `${libraries.length} sample libraries in Toronto`}
+              ? `${libraries.length} libraries within ${NEARBY_RADIUS_KM} km`
+              : `No TPL branches within ${NEARBY_RADIUS_KM} km. Branches are in Toronto.`
+            : `${libraries.length} Toronto Public Library branches`}
         </Text>
-        <Text style={styles.body}>Green: fictional sample libraries · Blue: your location. Tap a pin for details.</Text>
+        <Text style={styles.body}>Green: libraries · Blue: your location. Tap a pin for address and hours.</Text>
+        {branchesError ? <Text selectable accessibilityRole="alert" style={styles.body}>{branchesError}{branches !== null ? ' Showing previously loaded locations.' : ''}</Text> : null}
+        <OutlineButton label={branchesLoading ? 'Loading libraries…' : branchesError ? 'Retry loading libraries' : 'Refresh libraries'} disabled={branchesLoading} onPress={refresh} />
         <Text style={styles.body} accessibilityLiveRegion="polite">
           {location
             ? `Location updated at ${new Date(location.timestamp).toLocaleTimeString()}.`
@@ -109,7 +134,10 @@ export default function MapsScreen() {
         {needsSettings && Platform.OS !== 'web' ? (
           <OutlineButton label="Open settings" onPress={openSettings} />
         ) : null}
-      </View>
+        <Text style={styles.body}>Standard hours may change for holidays or closures.</Text>
+        <Text style={styles.source}>Source: <Link href={LIBRARY_DATASET_URL} style={styles.link}>Toronto Public Library / Toronto Open Data</Link>.</Text>
+        <Text style={styles.source}>Contains information licensed under the <Link href={LIBRARY_LICENCE_URL} style={styles.link}>Open Government Licence – Toronto</Link>.</Text>
+      </ScrollView>
     </Screen>
   );
 }
@@ -118,6 +146,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 0, paddingTop: 0 },
   heading: { paddingHorizontal: ScreenPadding, paddingTop: Spacing.lg },
   map: { flex: 1, minHeight: 160, backgroundColor: Colors.fill },
+  controlsScroll: { maxHeight: '50%', flexGrow: 0, backgroundColor: Colors.surface },
   controls: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -125,6 +154,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   body: { fontSize: 14, lineHeight: 22, color: Colors.muted },
+  detailText: { fontSize: 14, lineHeight: 22, color: Colors.ink },
+  details: { gap: Spacing.sm, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  source: { fontSize: 12, lineHeight: 18, color: Colors.muted },
+  link: { textDecorationLine: 'underline' },
   legend: { fontSize: 14, fontWeight: '700', color: Colors.ink },
   loading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
 });

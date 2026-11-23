@@ -5,7 +5,7 @@ import { libraryDescription } from '@/data/libraries';
 
 import { DEFAULT_MAP_CENTER, type LocationMapProps } from './location-map.types';
 
-export default function LocationMap({ coordinate, libraries }: LocationMapProps) {
+export default function LocationMap({ coordinate, libraries, onSelectLibrary }: LocationMapProps) {
   const map = useRef<MapView>(null);
   const ready = useRef(false);
 
@@ -32,7 +32,7 @@ export default function LocationMap({ coordinate, libraries }: LocationMapProps)
       }}
       showsMyLocationButton={false}>
       {libraries.map((library) => (
-        <Marker key={library.id} coordinate={library.coordinate} title={`${library.name} (Sample)`} description={libraryDescription(library)} pinColor="green" />
+        <Marker key={library.id} coordinate={library.coordinate} title={library.name} description={libraryDescription(library)} pinColor="green" onPress={() => onSelectLibrary(library.id)} />
       ))}
       {coordinate ? <Marker coordinate={coordinate} title="Your location" description="Your last requested location" pinColor="blue" /> : null}
     </MapView>

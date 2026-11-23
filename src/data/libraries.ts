@@ -1,23 +1,38 @@
 export type LibraryCoordinate = { latitude: number; longitude: number };
 
-export type SampleLibrary = {
+export type LibraryBranch = {
   id: string;
   name: string;
-  neighbourhood: string;
+  address: string;
+  hours: string;
   coordinate: LibraryCoordinate;
 };
 
-/** Fictional libraries with illustrative coordinates inside Toronto. */
-export const SAMPLE_LIBRARIES: readonly SampleLibrary[] = [
-  { id: 'sample-civic', name: 'Civic Square Library', neighbourhood: 'Downtown', coordinate: { latitude: 43.654, longitude: -79.384 } },
-  { id: 'sample-harbour', name: 'Harbour Reading Library', neighbourhood: 'Waterfront', coordinate: { latitude: 43.6405, longitude: -79.381 } },
-  { id: 'sample-garden', name: 'Garden Lane Library', neighbourhood: 'Garden District', coordinate: { latitude: 43.6615, longitude: -79.374 } },
-  { id: 'sample-annex', name: 'Annex Corner Library', neighbourhood: 'The Annex', coordinate: { latitude: 43.671, longitude: -79.408 } },
-  { id: 'sample-trinity', name: 'Trinity Reading Room', neighbourhood: 'Trinity Bellwoods', coordinate: { latitude: 43.6475, longitude: -79.414 } },
-  { id: 'sample-river', name: 'Riverbend Library', neighbourhood: 'Riverdale', coordinate: { latitude: 43.669, longitude: -79.351 } },
-  { id: 'sample-junction', name: 'West Junction Library', neighbourhood: 'The Junction', coordinate: { latitude: 43.665, longitude: -79.466 } },
-  { id: 'sample-midtown', name: 'Midtown Pages Library', neighbourhood: 'Midtown', coordinate: { latitude: 43.707, longitude: -79.399 } },
-];
+export const LIBRARY_DATASET_URL = 'https://open.toronto.ca/dataset/library-branch-general-information/';
+export const LIBRARY_LICENCE_URL = 'https://open.toronto.ca/open-data-licence/';
+
+/** Only physical branches with usable Toronto coordinates are mapped. */
+export function parseLibraryBranch(value: unknown): LibraryBranch | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  if (row.PhysicalBranch !== 1 && row.PhysicalBranch !== '1') return null;
+  const clean = (field: unknown) => typeof field === 'string' ? field.trim() : '';
+  const id = clean(row.BranchCode);
+  const name = clean(row.BranchName);
+  const lat = typeof row.Lat === 'number' ? row.Lat : clean(row.Lat);
+  const lon = typeof row.Long === 'number' ? row.Long : clean(row.Long);
+  if (lat === '' || lon === '') return null;
+  const latitude = Number(lat);
+  const longitude = Number(lon);
+  if (!id || !name || !Number.isFinite(latitude) || !Number.isFinite(longitude)
+      || latitude < 43.58 || latitude > 43.9 || longitude < -79.66 || longitude > -79.1) return null;
+  return {
+    id, name,
+    address: clean(row.Address) || 'Address unavailable',
+    hours: clean(row.Hours) || 'Hours unavailable. Check with the branch before visiting.',
+    coordinate: { latitude, longitude },
+  };
+}
 
 export const NEARBY_RADIUS_KM = 5;
 
@@ -31,10 +46,10 @@ export function distanceKm(from: LibraryCoordinate, to: LibraryCoordinate): numb
   return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))));
 }
 
-export type LibraryMapItem = SampleLibrary & { distanceKm: number | null };
+export type LibraryMapItem = LibraryBranch & { distanceKm: number | null };
 
-export function getMapLibraries(coordinate: LibraryCoordinate | null): LibraryMapItem[] {
-  const libraries = SAMPLE_LIBRARIES.map((library) => ({
+export function getMapLibraries(branches: readonly LibraryBranch[], coordinate: LibraryCoordinate | null): LibraryMapItem[] {
+  const libraries = branches.map((library) => ({
     ...library,
     distanceKm: coordinate ? distanceKm(coordinate, library.coordinate) : null,
   }));
@@ -45,5 +60,5 @@ export function getMapLibraries(coordinate: LibraryCoordinate | null): LibraryMa
 }
 
 export function libraryDescription(library: LibraryMapItem): string {
-  return `${library.neighbourhood} · Sample library${library.distanceKm == null ? '' : ` · ${library.distanceKm.toFixed(1)} km away (straight-line)`}`;
+  return `${library.address}\n${library.hours}${library.distanceKm == null ? '' : `\n${library.distanceKm.toFixed(1)} km away (straight-line)`}`;
 }

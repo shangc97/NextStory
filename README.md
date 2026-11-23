@@ -29,7 +29,7 @@ Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists 
 | Saved and Liked lists, kept per user between sessions | Working, Cloud Firestore | SCRUM-44, SCRUM-45 |
 | Book catalogue | 25 sample books in Firestore `book`; ratings are sample values | SCRUM-43 (Books API in progress) |
 | Book details, Search, genre filter | Working on the catalogue | SCRUM-38 |
-| Maps | Interactive map with 8 fictional Toronto sample libraries. My location shows sample libraries within 5 km, with straight-line distances in marker details. Location is not saved to the account | — |
+| Maps | Official Toronto Public Library branch locations, addresses and opening hours. My location filters branches within 5 km; tap a marker for details. Location is not saved to the account | — |
 | Reviews & ratings | Signed-in readers post a 1–5 rating and review, update their own review, and see live reader reviews and their community average in Firestore | SCRUM-40 |
 | Profile | Name, email, activity counts, clear activity, log out | SCRUM-37 |
 | Reading Preferences | Not built. "Edit reading preferences" on Profile is disabled | SCRUM-37, SCRUM-13 |
@@ -38,7 +38,11 @@ Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists 
 
 Book covers load from Open Library when online. Offline, a grey placeholder with the title is shown.
 
-Maps uses Apple Maps on iOS, Google Maps on Android, and Leaflet 1.9.4 with OpenStreetMap tiles on web. Map tiles (and the Leaflet CDN on web) require an internet connection. The bundled data in `src/data/libraries.ts` is fictional: names and coordinates are examples, not a real library directory. Green markers show sample libraries; blue shows the user's last requested location. Before location access, all samples are shown; after access, only samples within 5 km are shown, and the viewport fits those markers and the user. If none are nearby, an explicit empty message is shown. Distances are straight-line, not travel distances. Expo Go includes the native map module; existing development builds must be rebuilt after adding it. A standalone Android build also needs a Google Maps SDK API key configured through the `react-native-maps` plugin (`androidGoogleMapsApiKey`); see the [SDK 58 map setup](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/). No Google Maps key is configured in this repository yet.
+Maps uses Apple Maps on iOS, Google Maps on Android, and Leaflet 1.9.4 with OpenStreetMap tiles on web. Map tiles (and the Leaflet CDN on web) require an internet connection. Branches are fetched from the official [Library Branch General Information dataset](https://open.toronto.ca/dataset/library-branch-general-information/) using Toronto's CKAN DataStore API. Only physical branches with valid Toronto coordinates are displayed; non-branch service records are excluded. Green markers show branches; blue shows the user's last requested location. Tap a branch for its address, weekly opening hours and straight-line distance. Before location access, all branches are shown; after access, only branches within 5 km are shown, and the viewport fits those markers and the user. An empty nearby result is stated explicitly. Opening hours are the dataset's published standard hours, not live holiday/closure information.
+
+The directory refreshes when Maps mounts, supports manual refresh, and keeps the last successful result in memory if a refresh fails. A first-load failure offers retry and does not fall back to sample locations. No API key or new dependency is required for branch data. The resource ID is configured in `src/services/tpl-libraries.ts`; its parser reads `BranchCode`, `BranchName`, `PhysicalBranch`, `Lat`, `Long`, `Address` and `Hours`. Contains information licensed under the [Open Government Licence – Toronto](https://open.toronto.ca/open-data-licence/), provided by Toronto Public Library / City of Toronto Open Data. The app filters and reformats the source data. On November 23, 2026 the API returned 112 records, of which 100 were physical branches.
+
+Expo Go includes the native map module; existing development builds must be rebuilt after adding it. A standalone Android build also needs a Google Maps SDK API key configured through the `react-native-maps` plugin (`androidGoogleMapsApiKey`); see the [SDK 58 map setup](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/). No Google Maps key is configured in this repository yet.
 
 ## Getting started
 
@@ -92,7 +96,7 @@ Use `--clear` the first time and after any change to `.env.local`; the values ar
 4. On Book details, open **Reviews & ratings**, choose a score from 1–5, write a review and tap **Post review**. Once saved, the review appears below and contributes to the community average. Reopen the page to edit your review with **Update review**. Each reader has one review per book; book cards retain their catalogue/provider rating.
 5. **Saved** tab: the Saved and Liked lists. The ✕ removes a book.
 6. **Search** tab: search by title or author, or tap a genre.
-   **Maps** tab: opens a map centered on Toronto. Pan and zoom to explore, or tap **My location** and allow location access to center the map on your position. If access is blocked, enable it in device or browser settings and try again. The map remains usable without location access.
+   **Maps** tab: loads official TPL branches on the map. Tap a pin for its address and hours, or tap **My location** and allow location access to see branches within 5 km. **Refresh libraries** reloads the directory. If location access is blocked, enable it in device or browser settings and try again. The map and branch directory remain usable without location access.
 7. **Profile** tab: **Clear reading activity** removes your saves and swipes so the deck starts again from the first book.
 
 ## Troubleshooting
@@ -155,6 +159,7 @@ See [book collection](docs/firestore-books.md) and [like collection](docs/firest
 npx expo start --clear     # start the dev server
 npm run typecheck          # TypeScript check
 npm run test:reviews        # offline review validation and persistence-service tests
+npm run test:libraries      # offline official-branch parser/fetcher tests; add -- --live to check the API
 npm run lint               # ESLint
 npm run firebase:check     # read-only check of the Firebase setup in .env.local
 npm run firebase:test      # end-to-end check; creates and then deletes temporary test accounts and data
