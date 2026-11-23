@@ -29,6 +29,7 @@ Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists 
 | Saved and Liked lists, kept per user between sessions | Working, Cloud Firestore | SCRUM-44, SCRUM-45 |
 | Book catalogue | 25 sample books in Firestore `book`; ratings are sample values | SCRUM-43 (Books API in progress) |
 | Book details, Search, genre filter | Working on the catalogue | SCRUM-38 |
+| Maps | Interactive map with 8 fictional Toronto sample libraries. My location shows sample libraries within 5 km, with straight-line distances in marker details. Location is not saved to the account | — |
 | Reviews & ratings | Screen built: rating and review input, sample reviews. **Post review is disabled** and nothing is saved yet | SCRUM-40 |
 | Profile | Name, email, activity counts, clear activity, log out | SCRUM-37 |
 | Reading Preferences | Not built. "Edit reading preferences" on Profile is disabled | SCRUM-37, SCRUM-13 |
@@ -36,6 +37,8 @@ Midterm build (Sprint 5, October 2026). Accounts, the swipe deck, reading lists 
 | Personalized recommendations | Not built. The deck uses a fixed order | SCRUM-14 |
 
 Book covers load from Open Library when online. Offline, a grey placeholder with the title is shown.
+
+Maps uses Apple Maps on iOS, Google Maps on Android, and Leaflet 1.9.4 with OpenStreetMap tiles on web. Map tiles (and the Leaflet CDN on web) require an internet connection. The bundled data in `src/data/libraries.ts` is fictional: names and coordinates are examples, not a real library directory. Green markers show sample libraries; blue shows the user's last requested location. Before location access, all samples are shown; after access, only samples within 5 km are shown, and the viewport fits those markers and the user. If none are nearby, an explicit empty message is shown. Distances are straight-line, not travel distances. Expo Go includes the native map module; existing development builds must be rebuilt after adding it. A standalone Android build also needs a Google Maps SDK API key configured through the `react-native-maps` plugin (`androidGoogleMapsApiKey`); see the [SDK 58 map setup](https://docs.expo.dev/versions/v58.0.0/sdk/map-view/). No Google Maps key is configured in this repository yet.
 
 ## Getting started
 
@@ -89,6 +92,7 @@ Use `--clear` the first time and after any change to `.env.local`; the values ar
 4. On Book details, open **Reviews & ratings** to see the review screen.
 5. **Saved** tab: the Saved and Liked lists. The ✕ removes a book.
 6. **Search** tab: search by title or author, or tap a genre.
+   **Maps** tab: opens a map centered on Toronto. Pan and zoom to explore, or tap **My location** and allow location access to center the map on your position. If access is blocked, enable it in device or browser settings and try again. The map remains usable without location access.
 7. **Profile** tab: **Clear reading activity** removes your saves and swipes so the deck starts again from the first book.
 
 ## Troubleshooting

@@ -24,8 +24,8 @@ function Navigator() {
       <LibraryProvider>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
+          <Stack.Screen name="index" />
           <Stack.Protected guard={!user}>
-            <Stack.Screen name="index" />
             <Stack.Screen name="signup" />
           </Stack.Protected>
           <Stack.Protected guard={!!user}>

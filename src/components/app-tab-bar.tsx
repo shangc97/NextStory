@@ -7,6 +7,7 @@ export const TABS = [
   { name: 'discover', label: 'Discover' },
   { name: 'search', label: 'Search' },
   { name: 'saved', label: 'Saved' },
+  { name: 'maps', label: 'Maps' },
   { name: 'profile', label: 'Profile' },
 ] as const;
 
